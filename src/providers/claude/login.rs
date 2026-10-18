@@ -63,7 +63,7 @@ pub fn prepare_targeted(target_account_id: String) -> ClaudeLoginState {
 fn prepare_with_target(target_account_id: Option<String>) -> ClaudeLoginState {
     let flow_id = new_flow_id();
     let code_verifier = new_code_verifier();
-    let state_token = code_verifier.clone();
+    let state_token = URL_SAFE_NO_PAD.encode(random_bytes());
     let authorization_url = authorization_url(REDIRECT_URI, &code_verifier, &state_token);
     open_browser(&authorization_url);
 
