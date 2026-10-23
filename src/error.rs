@@ -145,6 +145,7 @@ impl AppError {
             Self::Provider(ProviderError::Antigravity(e)) => e.rate_limit_retry_after_secs(),
             Self::Provider(ProviderError::OpenCodeGo(e)) => e.rate_limit_retry_after_secs(),
             Self::Provider(ProviderError::Grok(e)) => e.rate_limit_retry_after_secs(),
+            Self::Provider(ProviderError::ElevenLabs(e)) => e.rate_limit_retry_after_secs(),
             _ => None,
         }
     }
@@ -969,6 +970,14 @@ pub enum ElevenLabsError {
 
 impl ElevenLabsError {
     #[must_use]
+    pub fn rate_limit_retry_after_secs(&self) -> Option<u64> {
+        match self {
+            Self::RateLimited { retry_after_secs } => *retry_after_secs,
+            _ => None,
+        }
+    }
+
+    #[must_use]
     pub fn is_network_unavailable(&self) -> bool {
         matches!(self, Self::UsageRequest(source) if request_could_not_reach_network(source))
     }
@@ -1217,6 +1226,16 @@ mod tests {
     #[test]
     fn grok_rate_limit_routes_retry_after_through_app_error() {
         let err = AppError::Provider(ProviderError::Grok(GrokError::RateLimited {
+            retry_after_secs: Some(42),
+        }));
+        assert_eq!(err.rate_limit_retry_after_secs(), Some(42));
+        assert!(err.is_transient());
+        assert!(!err.requires_user_action());
+    }
+
+    #[test]
+    fn elevenlabs_rate_limit_routes_retry_after_through_app_error() {
+        let err = AppError::Provider(ProviderError::ElevenLabs(ElevenLabsError::RateLimited {
             retry_after_secs: Some(42),
         }));
         assert_eq!(err.rate_limit_retry_after_secs(), Some(42));

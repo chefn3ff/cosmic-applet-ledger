@@ -51,12 +51,23 @@ pub fn apply_key_usage(snapshot: &mut UsageSnapshot, body: &str) {
     let Ok(stats) = serde_json::from_str::<CharacterStatsResponse>(body) else {
         return;
     };
+    // No key can spend more than the whole allowance, so cap each one there;
+    // that also keeps a hostile or broken response from overflowing the sum.
+    let cap = match &snapshot.provider_cost {
+        Some(ProviderCost {
+            limit: Some(limit), ..
+        }) if limit.is_finite() && *limit > 0.0 => *limit,
+        _ => f64::from(u32::MAX),
+    };
     let mut keys: Vec<KeyCreditUsage> = stats
         .usage
         .into_iter()
-        .map(|(name, series)| KeyCreditUsage {
-            key_name: Some(name),
-            credits: series.iter().sum::<f64>().max(0.0).round() as u64,
+        .map(|(name, series)| {
+            let total: f64 = series.iter().filter(|value| value.is_finite()).sum();
+            KeyCreditUsage {
+                key_name: Some(name),
+                credits: total.clamp(0.0, cap).round() as u64,
+            }
         })
         .filter(|key| key.credits > 0)
         .collect();
@@ -68,7 +79,9 @@ pub fn apply_key_usage(snapshot: &mut UsageSnapshot, body: &str) {
         ..
     }) = &snapshot.provider_cost
     {
-        let by_keys: u64 = keys.iter().map(|key| key.credits).sum();
+        let by_keys = keys
+            .iter()
+            .fold(0u64, |total, key| total.saturating_add(key.credits));
         let remainder = (*used as u64).saturating_sub(by_keys);
         if remainder as f64 > limit * NO_KEY_MIN_SHARE {
             keys.push(KeyCreditUsage {
@@ -249,6 +262,23 @@ mod tests {
         let mut snapshot = snapshot_with(10_050, 30_000);
         apply_key_usage(&mut snapshot, r#"{"usage":{"LifeOS":[10000.0]}}"#);
         assert_eq!(snapshot.credits_by_key.len(), 1);
+    }
+
+    #[test]
+    fn hostile_key_usage_is_capped_at_the_limit() {
+        let mut snapshot = snapshot_with(100, 30_000);
+        apply_key_usage(
+            &mut snapshot,
+            r#"{"usage":{"a":[1e308,1e308],"b":[1e19],"c":[-5000.0,20.0]}}"#,
+        );
+        let credits: Vec<u64> = snapshot
+            .credits_by_key
+            .iter()
+            .map(|key| key.credits)
+            .collect();
+        // "a" overflows f64 to infinity and "b" exceeds u64; both stop at the
+        // limit. "c" nets negative and is dropped.
+        assert_eq!(credits, vec![30_000, 30_000]);
     }
 
     #[test]
