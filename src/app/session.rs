@@ -47,6 +47,7 @@ pub(super) fn start_login(app: &mut AppModel, provider: ProviderId) -> Task<Mess
         ProviderId::Minimax => login::start_login::<login::MinimaxLoginFlow>(app),
         ProviderId::OpenCodeGo => login::start_login::<login::OpenCodeGoLoginFlow>(app),
         ProviderId::OpenRouter => login::start_login::<login::OpenRouterLoginFlow>(app),
+        ProviderId::ElevenLabs => login::start_login::<login::ElevenLabsLoginFlow>(app),
         ProviderId::Zai => login::start_login::<login::ZaiLoginFlow>(app),
     }
 }
@@ -101,6 +102,7 @@ pub(super) fn cancel_login(app: &mut AppModel, provider: ProviderId) {
         ProviderId::Minimax => login::cancel_login::<login::MinimaxLoginFlow>(app),
         ProviderId::OpenCodeGo => login::cancel_login::<login::OpenCodeGoLoginFlow>(app),
         ProviderId::OpenRouter => login::cancel_login::<login::OpenRouterLoginFlow>(app),
+        ProviderId::ElevenLabs => login::cancel_login::<login::ElevenLabsLoginFlow>(app),
         ProviderId::Zai => login::cancel_login::<login::ZaiLoginFlow>(app),
     }
 }
@@ -128,6 +130,9 @@ pub(super) fn reauthenticate(
         ProviderId::OpenRouter => {
             login::reauthenticate::<login::OpenRouterLoginFlow>(app, account_id)
         }
+        ProviderId::ElevenLabs => {
+            login::reauthenticate::<login::ElevenLabsLoginFlow>(app, account_id)
+        }
         ProviderId::Zai => login::reauthenticate::<login::ZaiLoginFlow>(app, account_id),
     }
 }
@@ -142,6 +147,7 @@ pub(super) fn sync_metadata_after_refresh(app: &mut AppModel, provider: Provider
         | ProviderId::Minimax
         | ProviderId::OpenCodeGo
         | ProviderId::OpenRouter
+        | ProviderId::ElevenLabs
         | ProviderId::Zai => {}
         ProviderId::Claude => {
             app.update_claude_metadata_from_state();
@@ -256,6 +262,7 @@ mod tests {
                 identity: crate::model::ProviderIdentity::default(),
                 tokens_by_day: Vec::new(),
                 tokens_by_model: Vec::new(),
+                credits_by_key: Vec::new(),
             });
         }
         let mut account = ProviderAccountRuntimeState::empty(ProviderId::Codex, "codex-1", "Codex");
@@ -271,6 +278,7 @@ mod tests {
             identity: crate::model::ProviderIdentity::default(),
             tokens_by_day: Vec::new(),
             tokens_by_model: Vec::new(),
+            credits_by_key: Vec::new(),
         });
         app.state.upsert_account(account);
 

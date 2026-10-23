@@ -5,8 +5,8 @@ mod rows;
 use self::empty::empty_accounts_state;
 use self::login_controls::{
     antigravity_login_controls, claude_login_controls, codex_login_controls,
-    copilot_login_controls, cursor_scan_controls, gemini_login_controls, grok_login_controls,
-    kimi_login_controls, minimax_login_controls, opencode_go_login_controls,
+    copilot_login_controls, cursor_scan_controls, elevenlabs_login_controls, gemini_login_controls,
+    grok_login_controls, kimi_login_controls, minimax_login_controls, opencode_go_login_controls,
     openrouter_login_controls, zai_login_controls,
 };
 use self::rows::{
@@ -199,6 +199,10 @@ pub(super) fn provider_settings_view<'a>(
         ProviderLoginKind::OpenRouter => (
             openrouter_login_controls(logins.openrouter, enabled),
             logins.openrouter.is_some(),
+        ),
+        ProviderLoginKind::ElevenLabs => (
+            elevenlabs_login_controls(logins.elevenlabs, enabled),
+            logins.elevenlabs.is_some(),
         ),
     };
     let selection_warning = registry::selection_required_message(provider_id);

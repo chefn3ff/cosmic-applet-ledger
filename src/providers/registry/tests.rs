@@ -100,6 +100,22 @@ fn openrouter_provider_registered_as_managed_key_provider() {
         None
     );
 }
+#[test]
+fn elevenlabs_provider_registered_as_managed_key_provider() {
+    assert_eq!(
+        login_kind(ProviderId::ElevenLabs),
+        ProviderLoginKind::ElevenLabs
+    );
+    assert!(!supports_opencode_import(ProviderId::ElevenLabs));
+    assert_eq!(
+        selection_required_message(ProviderId::ElevenLabs),
+        Some("Select".to_string())
+    );
+    assert_eq!(
+        system_active_account_id(ProviderId::ElevenLabs, &Config::default()),
+        None
+    );
+}
 
 #[test]
 fn zai_provider_registered_as_managed_key_provider() {

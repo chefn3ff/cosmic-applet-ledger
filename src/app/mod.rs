@@ -45,6 +45,7 @@ use crate::providers::claude::{self, ClaudeLoginEvent, ClaudeLoginState, ClaudeL
 use crate::providers::codex::{self, CodexLoginEvent, CodexLoginState, CodexLoginStatus};
 use crate::providers::copilot::{self, CopilotLoginEvent, CopilotLoginState, CopilotLoginStatus};
 use crate::providers::cursor::{self, CursorScanResult, CursorScanState};
+use crate::providers::elevenlabs::login::ElevenLabsLoginState;
 use crate::providers::gemini::{self, GeminiLoginEvent, GeminiLoginState, GeminiLoginStatus};
 use crate::providers::grok::{self, GrokLoginEvent, GrokLoginState, GrokLoginStatus};
 use crate::providers::kimi::{
@@ -138,7 +139,9 @@ pub struct AppModel {
     pub grok_login: Option<GrokLoginState>,
     pub grok_login_handle: Option<Handle>,
     pub openrouter_login: Option<OpenRouterLoginState>,
+    pub elevenlabs_login: Option<ElevenLabsLoginState>,
     pub openrouter_login_handle: Option<Handle>,
+    pub elevenlabs_login_handle: Option<Handle>,
     zai_login: Option<ZaiLoginState>,
     zai_login_handle: Option<Handle>,
 }
@@ -216,6 +219,7 @@ pub enum Message {
     SetRefreshInterval(u64),
     SetResetTimeFormat(ResetTimeFormat),
     SetUsageAmountFormat(UsageAmountFormat),
+    SetElevenLabsRingEnabled(bool),
     SetPanelIconStyle(PanelIconStyle),
     CheckUpdates,
     UpdateChecked { status: UpdateStatus, attempt: u32 },
@@ -327,7 +331,9 @@ impl cosmic::Application for AppModel {
             grok_login: None,
             grok_login_handle: None,
             openrouter_login: None,
+            elevenlabs_login: None,
             openrouter_login_handle: None,
+            elevenlabs_login_handle: None,
             zai_login: None,
             zai_login_handle: None,
         };
@@ -414,6 +420,7 @@ impl cosmic::Application for AppModel {
                 opencode_go: self.opencode_go_login.as_ref(),
                 grok: self.grok_login.as_ref(),
                 openrouter: self.openrouter_login.as_ref(),
+                elevenlabs: self.elevenlabs_login.as_ref(),
                 zai: self.zai_login.as_ref(),
             },
             popup_view::DetailSelection {
@@ -556,6 +563,9 @@ impl AppModel {
             Message::SetUsageAmountFormat(format) => {
                 return Some(self.set_usage_amount_format(format));
             }
+            Message::SetElevenLabsRingEnabled(enabled) => {
+                return Some(self.set_elevenlabs_ring_enabled(enabled));
+            }
             Message::SetPanelIconStyle(style) => {
                 return Some(self.set_panel_icon_style(style));
             }
@@ -619,6 +629,9 @@ impl AppModel {
                     }
                     (ProviderId::OpenRouter, login::LoginEventKind::OpenRouter(event)) => {
                         login::OpenRouterLoginFlow::on_event(self, event)
+                    }
+                    (ProviderId::ElevenLabs, login::LoginEventKind::ElevenLabs(event)) => {
+                        login::ElevenLabsLoginFlow::on_event(self, event)
                     }
                     (ProviderId::Zai, login::LoginEventKind::Zai(event)) => {
                         login::ZaiLoginFlow::on_event(self, event)

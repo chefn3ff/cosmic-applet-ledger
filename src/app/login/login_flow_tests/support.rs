@@ -52,7 +52,9 @@ pub(super) fn test_app() -> AppModel {
         grok_login: None,
         grok_login_handle: None,
         openrouter_login: None,
+        elevenlabs_login: None,
         openrouter_login_handle: None,
+        elevenlabs_login_handle: None,
         zai_login: None,
         zai_login_handle: None,
     }

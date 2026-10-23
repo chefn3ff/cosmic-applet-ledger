@@ -5,8 +5,11 @@ use super::super::super::{
     account_import_button, fl, row, widget,
 };
 use crate::app::login::{
-    KimiLoginFlow, LoginFlow, MinimaxLoginFlow, OpenCodeGoLoginFlow, OpenRouterLoginFlow,
-    ZaiLoginFlow,
+    ElevenLabsLoginFlow, KimiLoginFlow, LoginFlow, MinimaxLoginFlow, OpenCodeGoLoginFlow,
+    OpenRouterLoginFlow, ZaiLoginFlow,
+};
+use crate::providers::elevenlabs::{
+    ElevenLabsLoginEvent, ElevenLabsLoginState, ElevenLabsLoginStatus,
 };
 use crate::providers::grok::{GrokLoginState, GrokLoginStatus};
 use crate::providers::kimi::login::{KimiLoginEvent, KimiLoginState, KimiLoginStatus};
@@ -29,6 +32,10 @@ fn zai_login_message(event: ZaiLoginEvent) -> Message {
 
 fn openrouter_login_message(event: OpenRouterLoginEvent) -> Message {
     OpenRouterLoginFlow::wrap_event(event)
+}
+
+fn elevenlabs_login_message(event: ElevenLabsLoginEvent) -> Message {
+    ElevenLabsLoginFlow::wrap_event(event)
 }
 
 fn kimi_login_message(event: KimiLoginEvent) -> Message {
@@ -643,6 +650,78 @@ fn openrouter_login_fields(login: &OpenRouterLoginState) -> Element<'_, Message>
         widget::text(fl!("account-label")).size(12),
         widget::text_input(fl!("account-label"), &login.label)
             .on_input(|label| openrouter_login_message(OpenRouterLoginEvent::LabelChanged(label)))
+            .width(Length::Fill),
+    ]
+    .spacing(10)
+    .width(Length::Fill)
+    .into()
+}
+
+pub(super) fn elevenlabs_login_controls(
+    login: Option<&ElevenLabsLoginState>,
+    enabled: bool,
+) -> Element<'_, Message> {
+    let Some(login) = login else {
+        return account_add_button(
+            fl!("account-add"),
+            enabled.then_some(Message::StartLogin(crate::model::ProviderId::ElevenLabs)),
+        );
+    };
+    let status = match login.status {
+        ElevenLabsLoginStatus::Editing => "Configure ElevenLabs Account",
+        ElevenLabsLoginStatus::Failed => "ElevenLabs Account Configuration Failed",
+    };
+    let mut content = cosmic::iced::widget::column![widget::text(status).size(13)]
+        .spacing(10)
+        .width(Length::Fill);
+    if let Some(error) = &login.error {
+        content = content.push(widget::text(error).size(13));
+    }
+    if login.status == ElevenLabsLoginStatus::Editing {
+        content = content.push(elevenlabs_login_fields(login)).push(
+            row![
+                widget::button::standard(fl!("account-add")).on_press_maybe(
+                    enabled.then_some(elevenlabs_login_message(ElevenLabsLoginEvent::Saved))
+                ),
+                widget::button::text(fl!("account-cancel")).on_press_maybe(
+                    enabled.then_some(Message::CancelLogin(crate::model::ProviderId::ElevenLabs))
+                ),
+            ]
+            .spacing(8),
+        );
+    } else {
+        content = content.push(
+            row![
+                widget::button::text(fl!("account-add-another")).on_press_maybe(
+                    enabled.then_some(Message::StartLogin(crate::model::ProviderId::ElevenLabs))
+                ),
+                widget::button::text(fl!("account-dismiss")).on_press_maybe(
+                    enabled.then_some(Message::CancelLogin(crate::model::ProviderId::ElevenLabs))
+                ),
+            ]
+            .spacing(8),
+        );
+    }
+    content.into()
+}
+
+fn elevenlabs_login_fields(login: &ElevenLabsLoginState) -> Element<'_, Message> {
+    cosmic::iced::widget::column![
+        widget::text("ElevenLabs API Key").size(12),
+        widget::text_input::secure_input(
+            "sk_...",
+            &login.api_key,
+            Some(elevenlabs_login_message(
+                ElevenLabsLoginEvent::ApiKeyVisibilityToggled
+            )),
+            !login.api_key_visible,
+        )
+        .on_input(|api_key| elevenlabs_login_message(ElevenLabsLoginEvent::ApiKeyChanged(api_key)))
+        .on_submit(|_| elevenlabs_login_message(ElevenLabsLoginEvent::Saved))
+        .width(Length::Fill),
+        widget::text(fl!("account-label")).size(12),
+        widget::text_input(fl!("account-label"), &login.label)
+            .on_input(|label| elevenlabs_login_message(ElevenLabsLoginEvent::LabelChanged(label)))
             .width(Length::Fill),
     ]
     .spacing(10)

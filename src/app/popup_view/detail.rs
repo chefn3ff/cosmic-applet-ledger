@@ -12,9 +12,9 @@ use crate::config::{Config, UsageAmountFormat};
 use crate::currency_format;
 use crate::fl;
 use crate::model::{
-    AccountSelectionStatus, AppState, AuthState, ExtraUsageState, ProviderAccountRuntimeState,
-    ProviderCost, ProviderHealth, ProviderId, ProviderRuntimeState, STALE_THRESHOLD, UsageSnapshot,
-    UsageWindow,
+    AccountSelectionStatus, AppState, AuthState, ExtraUsageState, KeyCreditUsage,
+    ProviderAccountRuntimeState, ProviderCost, ProviderHealth, ProviderId, ProviderRuntimeState,
+    STALE_THRESHOLD, UsageSnapshot, UsageWindow,
 };
 use crate::usage_display;
 use cosmic::Element;
@@ -45,7 +45,8 @@ pub(super) fn selected_provider_view<'a>(
         .and_then(|a| a.snapshot.as_ref())
         .and_then(|s| s.identity.plan.as_deref());
 
-    let summary = provider_summary(provider, detected_without_accounts, plan);
+    let ring = elevenlabs_ring(provider.provider, state, config);
+    let summary = provider_summary(provider, detected_without_accounts, plan, ring);
 
     let body = account_body_items(active_account, provider, state, config, detection);
 
@@ -180,6 +181,16 @@ fn account_body_items<'a>(
         if !snapshot.tokens_by_model.is_empty() {
             items.push(tokens_by_model_section(&snapshot.tokens_by_model));
         }
+
+        // 4. CREDITS BY KEY (ElevenLabs)
+        if let Some(ProviderCost {
+            limit: Some(limit), ..
+        }) = &snapshot.provider_cost
+            && *limit > 0.0
+            && !snapshot.credits_by_key.is_empty()
+        {
+            items.push(credits_by_key_section(&snapshot.credits_by_key, *limit));
+        }
     } else if state.accounts_for(provider.provider).is_empty() {
         // When no account is configured yet, show a clean empty state helper below the banner
         let no_account_notice = container(
@@ -229,9 +240,10 @@ fn limits_section(snapshot: &UsageSnapshot) -> Element<'static, Message> {
 
     if let Some(session) = session_window {
         let pct = session.used_percent.clamp(0.0, 100.0);
-        let right_label = window_value_label(snapshot.provider, session);
+        let right_label = window_value_label(snapshot, session);
+        let row_title = session_row_title(snapshot.provider, session);
         let header_row = row![
-            widget::text("Session").size(14),
+            widget::text(row_title.clone()).size(14),
             cosmic::iced::widget::Space::new().width(Length::Fill),
             widget::text(right_label.clone()).size(13),
         ]
@@ -241,15 +253,25 @@ fn limits_section(snapshot: &UsageSnapshot) -> Element<'static, Message> {
         let bar = usage_progress_bar(usage_display::UsageMeter {
             fill_percent: pct,
             marker_percent: None,
-            tooltip: format!("Session: {right_label}"),
+            tooltip: format!("{row_title}: {right_label}"),
         });
 
-        meters_col = meters_col.push(column![header_row, bar].spacing(6).width(Length::Fill));
+        let mut session_col = column![header_row, bar].spacing(6).width(Length::Fill);
+
+        // Only the ElevenLabs credits row carries a reset time here; other
+        // providers' session windows have none.
+        if snapshot.provider == ProviderId::ElevenLabs
+            && let Some(reset) = session.reset_at
+        {
+            session_col = session_col.push(reset_caption(reset, now));
+        }
+
+        meters_col = meters_col.push(session_col);
     }
 
     if let Some(weekly) = weekly_window {
         let pct = weekly.used_percent.clamp(0.0, 100.0);
-        let right_label = window_value_label(snapshot.provider, weekly);
+        let right_label = window_value_label(snapshot, weekly);
         let header_row = row![
             widget::text("Weekly").size(14),
             cosmic::iced::widget::Space::new().width(Length::Fill),
@@ -267,28 +289,7 @@ fn limits_section(snapshot: &UsageSnapshot) -> Element<'static, Message> {
         let mut weekly_col = column![header_row, bar].spacing(6).width(Length::Fill);
 
         if let Some(reset) = weekly.reset_at {
-            let diff = reset - now;
-            let reset_text = if diff.num_seconds() <= 0 {
-                "Resets now".to_string()
-            } else if diff.num_days() > 0 {
-                format!("Resets in {}d {}h", diff.num_days(), diff.num_hours() % 24)
-            } else if diff.num_hours() > 0 {
-                format!(
-                    "Resets in {}h {}m",
-                    diff.num_hours(),
-                    diff.num_minutes() % 60
-                )
-            } else {
-                format!("Resets in {}m", diff.num_minutes().max(1))
-            };
-
-            weekly_col =
-                weekly_col.push(container(widget::text(reset_text).size(11)).style(|_| {
-                    widget::container::Style {
-                        text_color: Some(Color::from_rgba(1.0, 1.0, 1.0, 0.45)),
-                        ..Default::default()
-                    }
-                }));
+            weekly_col = weekly_col.push(reset_caption(reset, now));
         }
 
         meters_col = meters_col.push(weekly_col);
@@ -334,16 +335,147 @@ fn limits_section(snapshot: &UsageSnapshot) -> Element<'static, Message> {
     .into()
 }
 
+/// "Resets in 2d 4h" caption shown under a limits meter.
+fn reset_caption(
+    reset: chrono::DateTime<chrono::Utc>,
+    now: chrono::DateTime<chrono::Utc>,
+) -> Element<'static, Message> {
+    container(widget::text(reset_text(reset, now)).size(11))
+        .style(|_| widget::container::Style {
+            text_color: Some(Color::from_rgba(1.0, 1.0, 1.0, 0.45)),
+            ..Default::default()
+        })
+        .into()
+}
+
+fn reset_text(reset: chrono::DateTime<chrono::Utc>, now: chrono::DateTime<chrono::Utc>) -> String {
+    let diff = reset - now;
+    if diff.num_seconds() <= 0 {
+        "Resets now".to_string()
+    } else if diff.num_days() > 0 {
+        format!("Resets in {}d {}h", diff.num_days(), diff.num_hours() % 24)
+    } else if diff.num_hours() > 0 {
+        format!(
+            "Resets in {}h {}m",
+            diff.num_hours(),
+            diff.num_minutes() % 60
+        )
+    } else {
+        format!("Resets in {}m", diff.num_minutes().max(1))
+    }
+}
+
+/// The ElevenLabs credits ring for every other provider's header, when the
+/// ring is switched on, ElevenLabs is enabled and has a snapshot.
+fn elevenlabs_ring(
+    provider: ProviderId,
+    state: &AppState,
+    config: &Config,
+) -> Option<Element<'static, Message>> {
+    let elevenlabs_enabled = state
+        .provider(ProviderId::ElevenLabs)
+        .is_some_and(|elevenlabs| elevenlabs.enabled);
+    if provider == ProviderId::ElevenLabs || !config.elevenlabs_ring_enabled || !elevenlabs_enabled
+    {
+        return None;
+    }
+    let snapshot = state
+        .accounts_for(ProviderId::ElevenLabs)
+        .into_iter()
+        .find_map(|account| account.snapshot.as_ref())?;
+    let window = snapshot.windows.first()?;
+    let pct = window.used_percent.clamp(0.0, 100.0);
+
+    let mut tooltip = format!("ElevenLabs: {}", window_value_label(snapshot, window));
+    if snapshot.provider_cost.is_some() {
+        tooltip.push_str(" credits");
+    }
+    if let Some(reset) = window.reset_at {
+        tooltip.push_str(" · ");
+        tooltip.push_str(&reset_text(reset, chrono::Utc::now()));
+    }
+
+    let ring = widget::Svg::new(widget::svg::Handle::from_memory(credit_ring_svg(pct)))
+        .width(Length::Fixed(super::CREDIT_RING_SIZE))
+        .height(Length::Fixed(super::CREDIT_RING_SIZE));
+    let ring = super::overhang::overhang(
+        ring,
+        cosmic::iced::Size::new(super::CREDIT_RING_FOOTPRINT, super::CREDIT_RING_FOOTPRINT),
+    )
+    .nudge(cosmic::iced::Vector::new(0.0, super::CREDIT_RING_NUDGE_Y));
+    Some(
+        widget::tooltip::tooltip(
+            ring,
+            widget::text(tooltip).size(12),
+            widget::tooltip::Position::Bottom,
+        )
+        .into(),
+    )
+}
+
+/// A 32×32 gauge: faint track, an arc for the share used (clockwise from the
+/// top), and the ElevenLabs two-bar mark in the middle.
+fn credit_ring_svg(used_percent: f32) -> Vec<u8> {
+    const RADIUS: f32 = 13.5;
+    let circumference = 2.0 * std::f32::consts::PI * RADIUS;
+    let arc_length = circumference * used_percent.clamp(0.0, 100.0) / 100.0;
+    let arc = if arc_length > 0.0 {
+        format!(
+            r##"<circle cx="16" cy="16" r="{RADIUS}" fill="none" stroke="#ffffff" stroke-opacity="0.9" stroke-width="3" stroke-linecap="round" stroke-dasharray="{arc_length:.2} {circumference:.2}" transform="rotate(-90 16 16)"/>"##
+        )
+    } else {
+        String::new()
+    };
+    format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="{RADIUS}" fill="none" stroke="#ffffff" stroke-opacity="0.14" stroke-width="3"/>{arc}<rect x="12.6" y="9.5" width="2.4" height="13" rx="0.8" fill="#ffffff"/><rect x="17" y="9.5" width="2.4" height="13" rx="0.8" fill="#ffffff"/></svg>"##
+    )
+    .into_bytes()
+}
+
 /// Right-hand value for a limits row. Spend-based providers put a formatted
 /// amount in `reset_description`; everyone else uses it for reset metadata
-/// (often an RFC3339 timestamp), so they get the percentage.
-fn window_value_label(provider: ProviderId, window: &UsageWindow) -> String {
-    if provider == ProviderId::OpenRouter
+/// (often an RFC3339 timestamp), so they get the percentage. ElevenLabs shows
+/// raw credits ("8,200 / 30,000") from `provider_cost`.
+fn window_value_label(snapshot: &UsageSnapshot, window: &UsageWindow) -> String {
+    if snapshot.provider == ProviderId::OpenRouter
         && let Some(amount) = &window.reset_description
     {
         return amount.clone();
     }
+    if snapshot.provider == ProviderId::ElevenLabs
+        && let Some(ProviderCost {
+            used,
+            limit: Some(limit),
+            ..
+        }) = &snapshot.provider_cost
+        && *limit > 0.0
+    {
+        return format!("{} / {}", group_thousands(*used), group_thousands(*limit));
+    }
     format!("{:.0}%", window.used_percent.clamp(0.0, 100.0))
+}
+
+/// ElevenLabs has a single credits window, so the row carries its own label
+/// instead of the generic "Session".
+fn session_row_title(provider: ProviderId, window: &UsageWindow) -> String {
+    if provider == ProviderId::ElevenLabs {
+        window.label.clone()
+    } else {
+        "Session".to_string()
+    }
+}
+
+/// 8200.0 -> "8,200".
+fn group_thousands(value: f64) -> String {
+    let digits = format!("{:.0}", value.max(0.0));
+    let mut out = String::with_capacity(digits.len() + digits.len() / 3);
+    for (i, ch) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i) % 3 == 0 {
+            out.push(',');
+        }
+        out.push(ch);
+    }
+    out
 }
 
 /// Picks the Session and Weekly rows. The finders fall back loosely, so with a
@@ -530,19 +662,59 @@ fn tokens_by_day_section(days: &[crate::model::DayTokenUsage]) -> Element<'stati
     .into()
 }
 
+/// One row of a ranked-bar card: name on the left, value on the right, the
+/// bar filled to `pct` behind both.
+struct RankedBar {
+    name: String,
+    value: String,
+    tooltip: String,
+    pct: f32,
+}
+
 fn tokens_by_model_section(models: &[crate::model::ModelTokenUsage]) -> Element<'static, Message> {
     let scale_max = token_scale_max(models.iter().map(|m| m.token_count).max().unwrap_or(0));
+    let rows = models
+        .iter()
+        .map(|model| RankedBar {
+            name: model.model_name.clone(),
+            value: format_token_metric(model.token_count),
+            tooltip: format!("{}: {} tokens", model.model_name, model.token_count),
+            pct: (model.token_count as f64 / scale_max as f64 * 100.0) as f32,
+        })
+        .collect();
+    ranked_bars_section("TOKENS BY MODEL", rows)
+}
 
+/// Bars are scaled to the period's credit limit, not the busiest key, so
+/// together they read as shares of the whole allowance.
+fn credits_by_key_section(keys: &[KeyCreditUsage], limit: f64) -> Element<'static, Message> {
+    let rows = keys
+        .iter()
+        .map(|key| {
+            let name = key.key_name.clone().unwrap_or_else(|| "No key".to_string());
+            let value = group_thousands(key.credits as f64);
+            RankedBar {
+                tooltip: format!("{name}: {value} of {} credits", group_thousands(limit)),
+                pct: (key.credits as f64 / limit * 100.0) as f32,
+                name,
+                value,
+            }
+        })
+        .collect();
+    ranked_bars_section("CREDITS BY KEY", rows)
+}
+
+fn ranked_bars_section(title: &'static str, rows: Vec<RankedBar>) -> Element<'static, Message> {
     let section_label =
-        container(widget::text("TOKENS BY MODEL").size(11)).style(|_| widget::container::Style {
+        container(widget::text(title).size(11)).style(|_| widget::container::Style {
             text_color: Some(Color::from_rgba(1.0, 1.0, 1.0, 0.45)),
             ..Default::default()
         });
 
     let mut model_items = column![].spacing(8).width(Length::Fill);
 
-    for model in models {
-        let pct = (model.token_count as f64 / scale_max as f64 * 100.0).clamp(0.0, 100.0) as f32;
+    for bar in rows {
+        let pct = bar.pct.clamp(0.0, 100.0);
         let fill = (pct * 10.0).round() as u16;
         let empty = 1000 - fill;
 
@@ -586,9 +758,9 @@ fn tokens_by_model_section(models: &[crate::model::ModelTokenUsage]) -> Element<
 
         let text_overlay = container(
             row![
-                widget::text(model.model_name.clone()).size(12),
+                widget::text(bar.name).size(12),
                 cosmic::iced::widget::Space::new().width(Length::Fill),
-                widget::text(format_token_metric(model.token_count)).size(12),
+                widget::text(bar.value).size(12),
             ]
             .align_y(Alignment::Center)
             .width(Length::Fill),
@@ -606,11 +778,7 @@ fn tokens_by_model_section(models: &[crate::model::ModelTokenUsage]) -> Element<
 
         let slider_with_tip = widget::tooltip::tooltip(
             slider,
-            widget::text(format!(
-                "{}: {} tokens",
-                model.model_name, model.token_count
-            ))
-            .size(12),
+            widget::text(bar.tooltip).size(12),
             widget::tooltip::Position::Top,
         );
 
@@ -1586,6 +1754,68 @@ fn format_updated_label(last_success_at: chrono::DateTime<chrono::Utc>) -> Strin
 mod tests {
     use super::*;
     use crate::model::{AccountSelectionStatus, AuthState, ProviderHealth};
+
+    fn state_with_elevenlabs_snapshot() -> AppState {
+        let mut account =
+            ProviderAccountRuntimeState::empty(ProviderId::ElevenLabs, "el-1", "ElevenLabs");
+        account.snapshot = Some(
+            crate::providers::elevenlabs::quota::parse(
+                r#"{"tier":"starter","character_count":13903,"character_limit":30010}"#,
+                chrono::Utc::now(),
+            )
+            .expect("parses"),
+        );
+        let mut state = AppState::empty();
+        state.upsert_provider(ProviderRuntimeState::empty(ProviderId::ElevenLabs));
+        state.provider_accounts.push(account);
+        state
+    }
+
+    #[test]
+    fn elevenlabs_ring_shows_on_every_other_provider_when_on() {
+        let mut state = state_with_elevenlabs_snapshot();
+        let mut config = Config::default();
+        assert!(elevenlabs_ring(ProviderId::Claude, &state, &config).is_none());
+
+        config.elevenlabs_ring_enabled = true;
+        assert!(elevenlabs_ring(ProviderId::Claude, &state, &config).is_some());
+        assert!(elevenlabs_ring(ProviderId::Codex, &state, &config).is_some());
+        assert!(elevenlabs_ring(ProviderId::ElevenLabs, &state, &config).is_none());
+
+        state.upsert_provider(ProviderRuntimeState {
+            enabled: false,
+            ..ProviderRuntimeState::empty(ProviderId::ElevenLabs)
+        });
+        assert!(elevenlabs_ring(ProviderId::Claude, &state, &config).is_none());
+    }
+
+    #[test]
+    fn credit_ring_arc_tracks_used_share() {
+        let empty = String::from_utf8(credit_ring_svg(0.0)).expect("utf8");
+        assert!(!empty.contains("stroke-dasharray"));
+
+        let half = String::from_utf8(credit_ring_svg(50.0)).expect("utf8");
+        // Half of 2π·13.5 ≈ 84.82.
+        assert!(half.contains(r#"stroke-dasharray="42.41 84.82""#));
+
+        let over = String::from_utf8(credit_ring_svg(140.0)).expect("utf8");
+        assert!(over.contains(r#"stroke-dasharray="84.82 84.82""#));
+    }
+
+    #[test]
+    fn elevenlabs_credits_row_shows_grouped_raw_counts() {
+        let snapshot = crate::providers::elevenlabs::quota::parse(
+            r#"{"tier":"creator","character_count":8200,"character_limit":30000}"#,
+            chrono::Utc::now(),
+        )
+        .expect("parses");
+        let window = &snapshot.windows[0];
+        assert_eq!(window_value_label(&snapshot, window), "8,200 / 30,000");
+        assert_eq!(session_row_title(ProviderId::ElevenLabs, window), "Credits");
+        assert_eq!(session_row_title(ProviderId::Codex, window), "Session");
+        assert_eq!(group_thousands(999.0), "999");
+        assert_eq!(group_thousands(1_234_567.0), "1,234,567");
+    }
 
     fn limit_window(label: &str, window_seconds: Option<i64>) -> UsageWindow {
         UsageWindow {

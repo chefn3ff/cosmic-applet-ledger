@@ -172,6 +172,7 @@ pub fn parse(body: &str, updated_at: DateTime<Utc>) -> Result<UsageSnapshot, Kim
         },
         tokens_by_day: Vec::new(),
         tokens_by_model: Vec::new(),
+        credits_by_key: Vec::new(),
     })
 }
 

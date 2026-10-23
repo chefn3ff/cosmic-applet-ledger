@@ -347,22 +347,28 @@ pub(super) fn settings_view(
     .align_y(Alignment::Center)
     .width(Length::Fill);
 
-    let preferences_container = container(
-        cosmic::iced::widget::column![panel_bars_row, refresh_row]
-            .spacing(12)
-            .width(Length::Fill),
-    )
-    .padding([10, 12])
-    .width(Length::Fill)
-    .style(|_| widget::container::Style {
-        background: Some(Background::Color(Color::from_rgba(1.0, 1.0, 1.0, 0.02))),
-        border: cosmic::iced::Border {
-            radius: 2.0.into(),
-            width: 1.0,
-            color: Color::from_rgba(1.0, 1.0, 1.0, 0.08),
-        },
-        ..Default::default()
-    });
+    let mut preference_rows = cosmic::iced::widget::column![panel_bars_row, refresh_row]
+        .spacing(12)
+        .width(Length::Fill);
+    if state
+        .provider(ProviderId::ElevenLabs)
+        .is_some_and(|elevenlabs| elevenlabs.enabled)
+    {
+        preference_rows = preference_rows.push(elevenlabs_ring_row(config.elevenlabs_ring_enabled));
+    }
+
+    let preferences_container = container(preference_rows)
+        .padding([10, 12])
+        .width(Length::Fill)
+        .style(|_| widget::container::Style {
+            background: Some(Background::Color(Color::from_rgba(1.0, 1.0, 1.0, 0.02))),
+            border: cosmic::iced::Border {
+                radius: 2.0.into(),
+                width: 1.0,
+                color: Color::from_rgba(1.0, 1.0, 1.0, 0.08),
+            },
+            ..Default::default()
+        });
 
     let about_label =
         container(widget::text("ABOUT").size(11)).style(|_| widget::container::Style {
@@ -385,6 +391,79 @@ pub(super) fn settings_view(
     .spacing(14)
     .width(Length::Fill)
     .into()
+}
+
+/// PREFERENCES row for the ElevenLabs credits ring in other providers' headers.
+fn elevenlabs_ring_row(enabled: bool) -> Element<'static, Message> {
+    row![
+        cosmic::iced::widget::column![
+            widget::text("ElevenLabs Credits Ring").size(14),
+            container(widget::text("Show ElevenLabs credits on every provider").size(11)).style(
+                |_| widget::container::Style {
+                    text_color: Some(Color::from_rgba(1.0, 1.0, 1.0, 0.45)),
+                    ..Default::default()
+                }
+            )
+        ]
+        .spacing(2),
+        cosmic::iced::widget::Space::new().width(Length::Fill),
+        row![
+            preference_choice_button("OFF", !enabled, Message::SetElevenLabsRingEnabled(false)),
+            preference_choice_button("ON", enabled, Message::SetElevenLabsRingEnabled(true)),
+        ]
+        .spacing(4),
+    ]
+    .align_y(Alignment::Center)
+    .width(Length::Fill)
+    .into()
+}
+
+/// One half of a PREFERENCES OFF/ON pair, styled like Panel Status Bars.
+fn preference_choice_button(
+    label: &'static str,
+    selected: bool,
+    message: Message,
+) -> Element<'static, Message> {
+    widget::button::custom(container(widget::text(label).size(12)).padding([3, 10]))
+        .padding(0)
+        .class(cosmic::theme::Button::Custom {
+            active: Box::new(move |_focused, _theme| widget::button::Style {
+                background: selected
+                    .then(|| Background::Color(Color::from_rgba(1.0, 1.0, 1.0, 0.15))),
+                text_color: Some(if selected {
+                    Color::WHITE
+                } else {
+                    Color::from_rgba(1.0, 1.0, 1.0, 0.45)
+                }),
+                border_radius: 2.0.into(),
+                border_width: 1.0,
+                border_color: if selected {
+                    Color::from_rgba(1.0, 1.0, 1.0, 0.3)
+                } else {
+                    Color::from_rgba(1.0, 1.0, 1.0, 0.08)
+                },
+                ..Default::default()
+            }),
+            disabled: Box::new(|_| widget::button::Style::new()),
+            hovered: Box::new(move |_focused, _theme| widget::button::Style {
+                background: Some(Background::Color(Color::from_rgba(1.0, 1.0, 1.0, 0.10))),
+                text_color: Some(Color::WHITE),
+                border_radius: 2.0.into(),
+                border_width: 1.0,
+                border_color: Color::from_rgba(1.0, 1.0, 1.0, 0.25),
+                ..Default::default()
+            }),
+            pressed: Box::new(move |_focused, _theme| widget::button::Style {
+                background: Some(Background::Color(Color::from_rgba(1.0, 1.0, 1.0, 0.20))),
+                text_color: Some(Color::WHITE),
+                border_radius: 2.0.into(),
+                border_width: 1.0,
+                border_color: Color::WHITE,
+                ..Default::default()
+            }),
+        })
+        .on_press(message)
+        .into()
 }
 
 #[allow(dead_code)]

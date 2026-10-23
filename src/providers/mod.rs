@@ -6,6 +6,7 @@ pub mod claude;
 pub mod codex;
 pub mod copilot;
 pub mod cursor;
+pub mod elevenlabs;
 pub mod gemini;
 pub mod google_oauth;
 pub mod grok;

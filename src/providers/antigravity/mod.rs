@@ -185,6 +185,7 @@ async fn fetch_at(
         },
         tokens_by_day: Vec::new(),
         tokens_by_model: Vec::new(),
+        credits_by_key: Vec::new(),
     };
     let _ = storage.save_snapshot(account_id, &snapshot);
     Ok(snapshot)

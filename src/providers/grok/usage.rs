@@ -93,6 +93,7 @@ pub fn parse_billing_snapshot(
         identity,
         tokens_by_day: Vec::new(),
         tokens_by_model: Vec::new(),
+        credits_by_key: Vec::new(),
     })
 }
 

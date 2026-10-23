@@ -44,6 +44,10 @@ impl Config {
             "grok_enablement" => {
                 self.grok_enablement = update.grok_enablement;
             }
+            "elevenlabs_enablement" => self.elevenlabs_enablement = update.elevenlabs_enablement,
+            "elevenlabs_ring_enabled" => {
+                self.elevenlabs_ring_enabled = update.elevenlabs_ring_enabled;
+            }
             "log_level" => self.log_level.clone_from(&update.log_level),
             _ => return false,
         }
@@ -119,6 +123,13 @@ impl Config {
             }
             "grok_managed_accounts" => {
                 self.grok_managed_accounts = update.grok_managed_accounts.clone();
+            }
+            "selected_elevenlabs_account_ids" => {
+                self.selected_elevenlabs_account_ids =
+                    update.selected_elevenlabs_account_ids.clone();
+            }
+            "elevenlabs_managed_accounts" => {
+                self.elevenlabs_managed_accounts = update.elevenlabs_managed_accounts.clone();
             }
             _ => {}
         }

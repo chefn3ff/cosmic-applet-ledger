@@ -85,6 +85,12 @@ impl From<OpenRouterError> for AppError {
     }
 }
 
+impl From<ElevenLabsError> for AppError {
+    fn from(value: ElevenLabsError) -> Self {
+        Self::Provider(ProviderError::ElevenLabs(value))
+    }
+}
+
 impl From<GrokError> for AppError {
     fn from(value: GrokError) -> Self {
         Self::Provider(ProviderError::Grok(value))
@@ -182,6 +188,8 @@ pub enum ProviderError {
     Grok(#[from] GrokError),
     #[error(transparent)]
     OpenRouter(#[from] OpenRouterError),
+    #[error(transparent)]
+    ElevenLabs(#[from] ElevenLabsError),
 }
 
 impl ProviderError {
@@ -200,6 +208,7 @@ impl ProviderError {
             Self::OpenCodeGo(error) => error.is_network_unavailable(),
             Self::Grok(error) => error.is_network_unavailable(),
             Self::OpenRouter(error) => error.is_network_unavailable(),
+            Self::ElevenLabs(error) => error.is_network_unavailable(),
         }
     }
 
@@ -218,6 +227,7 @@ impl ProviderError {
             Self::OpenCodeGo(error) => error.requires_user_action(),
             Self::Grok(error) => error.requires_user_action(),
             Self::OpenRouter(error) => error.requires_user_action(),
+            Self::ElevenLabs(error) => error.requires_user_action(),
         }
     }
 
@@ -236,6 +246,7 @@ impl ProviderError {
             Self::OpenCodeGo(error) => error.is_transient(),
             Self::Grok(error) => error.is_transient(),
             Self::OpenRouter(error) => error.is_transient(),
+            Self::ElevenLabs(error) => error.is_transient(),
         }
     }
 }
@@ -936,6 +947,44 @@ impl OpenRouterError {
             | Self::InvalidApiKey
             | Self::DecodeUsage(_)
             | Self::InvalidEnvelope => false,
+        }
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum ElevenLabsError {
+    #[error("ElevenLabs login required")]
+    LoginRequired,
+    #[error("ElevenLabs API key is invalid")]
+    InvalidApiKey,
+    #[error("ElevenLabs request failed")]
+    UsageRequest(#[source] reqwest::Error),
+    #[error("ElevenLabs endpoint returned HTTP {status}")]
+    UsageHttp { status: u16 },
+    #[error("failed to decode ElevenLabs response")]
+    DecodeUsage(#[source] serde_json::Error),
+    #[error("Rate limited by ElevenLabs — will retry automatically")]
+    RateLimited { retry_after_secs: Option<u64> },
+}
+
+impl ElevenLabsError {
+    #[must_use]
+    pub fn is_network_unavailable(&self) -> bool {
+        matches!(self, Self::UsageRequest(source) if request_could_not_reach_network(source))
+    }
+
+    #[must_use]
+    pub fn requires_user_action(&self) -> bool {
+        matches!(self, Self::LoginRequired | Self::InvalidApiKey)
+    }
+
+    #[must_use]
+    pub fn is_transient(&self) -> bool {
+        match self {
+            Self::RateLimited { .. } => true,
+            Self::UsageRequest(source) => request_could_not_reach_network(source),
+            Self::UsageHttp { status } => matches!(*status, 500 | 502 | 503 | 504),
+            Self::LoginRequired | Self::InvalidApiKey | Self::DecodeUsage(_) => false,
         }
     }
 }

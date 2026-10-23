@@ -2,10 +2,10 @@
 
 use crate::config::{
     Config, ManagedAntigravityAccountConfig, ManagedClaudeAccountConfig, ManagedCodexAccountConfig,
-    ManagedCopilotAccountConfig, ManagedCursorAccountConfig, ManagedGeminiAccountConfig,
-    ManagedGrokAccountConfig, ManagedKimiAccountConfig, ManagedMinimaxAccountConfig,
-    ManagedOpenCodeGoAccountConfig, ManagedOpenRouterAccountConfig, ManagedZaiAccountConfig,
-    ProviderEnablement, ProviderVisibilityMode, paths,
+    ManagedCopilotAccountConfig, ManagedCursorAccountConfig, ManagedElevenLabsAccountConfig,
+    ManagedGeminiAccountConfig, ManagedGrokAccountConfig, ManagedKimiAccountConfig,
+    ManagedMinimaxAccountConfig, ManagedOpenCodeGoAccountConfig, ManagedOpenRouterAccountConfig,
+    ManagedZaiAccountConfig, ProviderEnablement, ProviderVisibilityMode, paths,
 };
 use crate::model::{
     AccountSelectionStatus, AppState, AuthState, ExtraUsageState, ProviderAccountRuntimeState,
@@ -34,6 +34,7 @@ const KIMI_PRIMARY_ID: &str = "yapcap-demo:kimi-primary";
 const MINIMAX_PRIMARY_ID: &str = "yapcap-demo:minimax-primary";
 const OPENCODE_GO_ID: &str = "yapcap-demo:opencode-go";
 const OPENROUTER_PRIMARY_ID: &str = "yapcap-demo:openrouter-primary";
+const ELEVENLABS_PRIMARY_ID: &str = "yapcap-demo:elevenlabs-primary";
 const ZAI_PRIMARY_ID: &str = "yapcap-demo:zai-coding-plan";
 
 fn is_val_truthy(val: &str) -> bool {
@@ -85,6 +86,7 @@ pub fn apply_config(config: &mut Config) {
     config.minimax_enablement = ProviderEnablement::Enabled;
     config.opencode_go_enablement = ProviderEnablement::Enabled;
     config.openrouter_enablement = ProviderEnablement::Enabled;
+    config.elevenlabs_enablement = ProviderEnablement::Enabled;
     config.zai_enablement = ProviderEnablement::Enabled;
 
     config.antigravity_managed_accounts = demo_antigravity_accounts();
@@ -98,6 +100,7 @@ pub fn apply_config(config: &mut Config) {
     config.minimax_managed_accounts = demo_minimax_accounts();
     config.opencode_go_managed_accounts = demo_opencode_go_accounts();
     config.openrouter_managed_accounts = demo_openrouter_accounts();
+    config.elevenlabs_managed_accounts = demo_elevenlabs_accounts();
     config.zai_managed_accounts = demo_zai_accounts();
 
     config.provider_visibility_mode = ProviderVisibilityMode::UserManaged;
@@ -113,6 +116,7 @@ pub fn apply_config(config: &mut Config) {
     config.selected_minimax_account_ids = vec![MINIMAX_PRIMARY_ID.to_string()];
     config.selected_opencode_go_account_ids = vec![OPENCODE_GO_ID.to_string()];
     config.selected_openrouter_account_ids = vec![OPENROUTER_PRIMARY_ID.to_string()];
+    config.selected_elevenlabs_account_ids = vec![ELEVENLABS_PRIMARY_ID.to_string()];
     config.selected_zai_account_ids = vec![ZAI_PRIMARY_ID.to_string()];
 }
 
@@ -144,6 +148,10 @@ pub fn strip_leaked_state(config: &mut Config) -> bool {
     });
     changed |= strip_ids(&mut config.selected_openrouter_account_ids);
     changed |= retain_len_changed(&mut config.openrouter_managed_accounts, |account| {
+        &account.id
+    });
+    changed |= strip_ids(&mut config.selected_elevenlabs_account_ids);
+    changed |= retain_len_changed(&mut config.elevenlabs_managed_accounts, |account| {
         &account.id
     });
     changed |= strip_ids(&mut config.selected_zai_account_ids);
@@ -218,6 +226,7 @@ fn demo_system_active_account_id(provider: ProviderId) -> Option<String> {
         ProviderId::Minimax => return None,
         ProviderId::OpenCodeGo => return None,
         ProviderId::OpenRouter => return None,
+        ProviderId::ElevenLabs => return None,
         ProviderId::Zai => return None,
     };
     Some(id.to_string())
@@ -236,6 +245,7 @@ fn demo_source(provider: ProviderId) -> String {
         ProviderId::Minimax => "API Key".to_string(),
         ProviderId::OpenCodeGo => "API Key".to_string(),
         ProviderId::OpenRouter => "API Key".to_string(),
+        ProviderId::ElevenLabs => "API Key".to_string(),
         ProviderId::Zai => "API Key".to_string(),
     }
 }
@@ -419,6 +429,18 @@ fn demo_runtime_accounts(provider: ProviderId) -> Vec<ProviderAccountRuntimeStat
                 snapshot: snapshot_opencode_go(),
             },
         )],
+        ProviderId::ElevenLabs => vec![demo_account(
+            provider,
+            DemoAccount {
+                account_id: ELEVENLABS_PRIMARY_ID,
+                label: "ElevenLabs",
+                last_success_at: now - Duration::minutes(2),
+                health: ProviderHealth::Ok,
+                auth_state: AuthState::Ready,
+                error: None,
+                snapshot: snapshot_elevenlabs(),
+            },
+        )],
         ProviderId::OpenRouter => vec![demo_account(
             provider,
             DemoAccount {
@@ -579,6 +601,7 @@ fn snapshot_codex_pro() -> UsageSnapshot {
         },
         tokens_by_day: demo_tokens_by_day(ProviderId::Codex),
         tokens_by_model: demo_tokens_by_model(ProviderId::Codex),
+        credits_by_key: Vec::new(),
     }
 }
 
@@ -600,6 +623,7 @@ fn snapshot_codex_free() -> UsageSnapshot {
         },
         tokens_by_day: demo_tokens_by_day(ProviderId::Codex),
         tokens_by_model: demo_tokens_by_model(ProviderId::Codex),
+        credits_by_key: Vec::new(),
     }
 }
 
@@ -656,6 +680,7 @@ fn snapshot_claude_primary() -> UsageSnapshot {
         },
         tokens_by_day: demo_tokens_by_day(ProviderId::Claude),
         tokens_by_model: demo_tokens_by_model(ProviderId::Claude),
+        credits_by_key: Vec::new(),
     }
 }
 
@@ -729,6 +754,7 @@ fn snapshot_claude_max() -> UsageSnapshot {
         },
         tokens_by_day: demo_tokens_by_day(ProviderId::Claude),
         tokens_by_model: demo_tokens_by_model(ProviderId::Claude),
+        credits_by_key: Vec::new(),
     }
 }
 
@@ -780,6 +806,7 @@ fn snapshot_gemini_primary() -> UsageSnapshot {
         },
         tokens_by_day: demo_tokens_by_day(ProviderId::Gemini),
         tokens_by_model: demo_tokens_by_model(ProviderId::Gemini),
+        credits_by_key: Vec::new(),
     }
 }
 
@@ -809,6 +836,7 @@ fn snapshot_cursor_primary() -> UsageSnapshot {
         },
         tokens_by_day: demo_tokens_by_day(ProviderId::Cursor),
         tokens_by_model: demo_tokens_by_model(ProviderId::Cursor),
+        credits_by_key: Vec::new(),
     }
 }
 
@@ -849,6 +877,7 @@ fn snapshot_copilot_free() -> UsageSnapshot {
         },
         tokens_by_day: demo_tokens_by_day(ProviderId::Copilot),
         tokens_by_model: demo_tokens_by_model(ProviderId::Copilot),
+        credits_by_key: Vec::new(),
     }
 }
 
@@ -882,6 +911,7 @@ fn snapshot_copilot_pro() -> UsageSnapshot {
         },
         tokens_by_day: demo_tokens_by_day(ProviderId::Copilot),
         tokens_by_model: demo_tokens_by_model(ProviderId::Copilot),
+        credits_by_key: Vec::new(),
     }
 }
 
@@ -953,6 +983,18 @@ fn demo_openrouter_accounts() -> Vec<ManagedOpenRouterAccountConfig> {
     }]
 }
 
+fn demo_elevenlabs_accounts() -> Vec<ManagedElevenLabsAccountConfig> {
+    let now = demo_timestamp();
+    vec![ManagedElevenLabsAccountConfig {
+        id: ELEVENLABS_PRIMARY_ID.to_string(),
+        label: "ElevenLabs".to_string(),
+        api_key_source: "Demo".to_string(),
+        created_at: now,
+        updated_at: now,
+        last_authenticated_at: Some(now),
+    }]
+}
+
 fn demo_zai_accounts() -> Vec<ManagedZaiAccountConfig> {
     let now = demo_timestamp();
     vec![ManagedZaiAccountConfig {
@@ -1002,6 +1044,7 @@ fn snapshot_minimax_primary() -> UsageSnapshot {
         },
         tokens_by_day: demo_tokens_by_day(ProviderId::Minimax),
         tokens_by_model: demo_tokens_by_model(ProviderId::Minimax),
+        credits_by_key: Vec::new(),
     }
 }
 
@@ -1042,6 +1085,7 @@ fn snapshot_kimi_primary() -> UsageSnapshot {
         },
         tokens_by_day: demo_tokens_by_day(ProviderId::Kimi),
         tokens_by_model: demo_tokens_by_model(ProviderId::Kimi),
+        credits_by_key: Vec::new(),
     }
 }
 
@@ -1091,6 +1135,7 @@ fn snapshot_zai_primary() -> UsageSnapshot {
         },
         tokens_by_day: demo_tokens_by_day(ProviderId::Zai),
         tokens_by_model: demo_tokens_by_model(ProviderId::Zai),
+        credits_by_key: Vec::new(),
     }
 }
 
@@ -1140,6 +1185,7 @@ fn snapshot_opencode_go() -> UsageSnapshot {
         },
         tokens_by_day: demo_tokens_by_day(ProviderId::OpenCodeGo),
         tokens_by_model: demo_tokens_by_model(ProviderId::OpenCodeGo),
+        credits_by_key: Vec::new(),
     }
 }
 
@@ -1169,6 +1215,49 @@ fn snapshot_grok() -> UsageSnapshot {
         },
         tokens_by_day: demo_tokens_by_day(ProviderId::Grok),
         tokens_by_model: demo_tokens_by_model(ProviderId::Grok),
+        credits_by_key: Vec::new(),
+    }
+}
+
+fn snapshot_elevenlabs() -> UsageSnapshot {
+    let now = Utc::now();
+    UsageSnapshot {
+        provider: ProviderId::ElevenLabs,
+        source: "API Key".to_string(),
+        updated_at: now,
+        headline: UsageHeadline(0),
+        windows: vec![UsageWindow {
+            label: "Credits".to_string(),
+            used_percent: 8_200.0 / 30_000.0 * 100.0,
+            reset_at: Some(now + Duration::days(12)),
+            window_seconds: None,
+            reset_description: None,
+            group: None,
+        }],
+        provider_cost: Some(ProviderCost {
+            used: 8_200.0,
+            limit: Some(30_000.0),
+            units: "credits".to_string(),
+        }),
+        extra_usage: None,
+        identity: ProviderIdentity {
+            email: None,
+            account_id: None,
+            plan: Some("Creator".to_string()),
+            display_name: Some("Demo key".to_string()),
+        },
+        tokens_by_day: Vec::new(),
+        tokens_by_model: Vec::new(),
+        credits_by_key: vec![
+            crate::model::KeyCreditUsage {
+                key_name: Some("Assistant".to_string()),
+                credits: 6_900,
+            },
+            crate::model::KeyCreditUsage {
+                key_name: Some("Podcast".to_string()),
+                credits: 1_300,
+            },
+        ],
     }
 }
 
@@ -1201,6 +1290,7 @@ fn snapshot_openrouter() -> UsageSnapshot {
         },
         tokens_by_day: demo_tokens_by_day(ProviderId::OpenRouter),
         tokens_by_model: demo_tokens_by_model(ProviderId::OpenRouter),
+        credits_by_key: Vec::new(),
     }
 }
 
@@ -1398,6 +1488,7 @@ fn snapshot_antigravity_primary() -> UsageSnapshot {
         },
         tokens_by_day: demo_tokens_by_day(ProviderId::Antigravity),
         tokens_by_model: demo_tokens_by_model(ProviderId::Antigravity),
+        credits_by_key: Vec::new(),
     }
 }
 
@@ -1427,6 +1518,7 @@ fn snapshot_antigravity_free() -> UsageSnapshot {
         },
         tokens_by_day: demo_tokens_by_day(ProviderId::Antigravity),
         tokens_by_model: demo_tokens_by_model(ProviderId::Antigravity),
+        credits_by_key: Vec::new(),
     }
 }
 
@@ -1532,6 +1624,7 @@ mod tests {
         assert_eq!(config.opencode_go_managed_accounts.len(), 1);
         assert_eq!(config.zai_managed_accounts.len(), 1);
         assert_eq!(config.openrouter_managed_accounts.len(), 1);
+        assert_eq!(config.elevenlabs_managed_accounts.len(), 1);
         assert_eq!(config.selected_codex_account_ids.len(), 1);
         assert_eq!(config.selected_claude_account_ids.len(), 1);
         assert_eq!(config.selected_cursor_account_ids.len(), 1);
@@ -1625,6 +1718,11 @@ mod tests {
                     .collect(),
                 ProviderId::OpenCodeGo => config
                     .opencode_go_managed_accounts
+                    .iter()
+                    .map(|a| &a.id)
+                    .collect(),
+                ProviderId::ElevenLabs => config
+                    .elevenlabs_managed_accounts
                     .iter()
                     .map(|a| &a.id)
                     .collect(),

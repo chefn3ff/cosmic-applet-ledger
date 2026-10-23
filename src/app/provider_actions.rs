@@ -388,6 +388,20 @@ impl AppModel {
         Task::none()
     }
 
+    pub(super) fn set_elevenlabs_ring_enabled(&mut self, enabled: bool) -> Task<Message> {
+        let previous = self.config.elevenlabs_ring_enabled;
+        self.write_config(|new_config| {
+            new_config.elevenlabs_ring_enabled = enabled;
+        });
+        tracing::info!(
+            process_id = %self.process_info.id,
+            previous,
+            enabled,
+            "elevenlabs ring setting changed"
+        );
+        Task::none()
+    }
+
     pub(super) fn set_panel_icon_style(&mut self, style: PanelIconStyle) -> Task<Message> {
         let previous = self.config.panel_icon_style;
         self.write_config(|new_config| {
@@ -581,6 +595,7 @@ pub(super) fn popup_route_label(route: PopupRoute) -> &'static str {
             ProviderId::Minimax => "manage_accounts_minimax",
             ProviderId::OpenCodeGo => "manage_accounts_opencode_go",
             ProviderId::OpenRouter => "manage_accounts_openrouter",
+            ProviderId::ElevenLabs => "manage_accounts_elevenlabs",
             ProviderId::Zai => "manage_accounts_zai",
         },
         PopupRoute::About => "about",

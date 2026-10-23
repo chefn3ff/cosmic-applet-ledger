@@ -74,6 +74,12 @@ pub fn provider_icon_handle(provider: ProviderId, variant: ProviderIconVariant) 
         (ProviderId::OpenRouter, ProviderIconVariant::Reversed) => {
             include_bytes!("../../resources/providers/openrouter-reversed.svg")
         }
+        (ProviderId::ElevenLabs, ProviderIconVariant::Default) => {
+            include_bytes!("../../resources/providers/elevenlabs.svg")
+        }
+        (ProviderId::ElevenLabs, ProviderIconVariant::Reversed) => {
+            include_bytes!("../../resources/providers/elevenlabs-reversed.svg")
+        }
     };
 
     icon::from_svg_bytes(bytes)

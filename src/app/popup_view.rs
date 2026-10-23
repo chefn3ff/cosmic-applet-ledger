@@ -2,6 +2,7 @@
 
 mod badges;
 mod detail;
+mod overhang;
 mod settings;
 
 use self::badges::{
@@ -40,6 +41,16 @@ const PROVIDER_CARD_SPACING: f32 = 8.0;
 const PROVIDER_GROUP_PADDING: f32 = 24.0;
 const PROVIDER_GROUP_SPACING: f32 = 12.0;
 const HEADER_ICON_BUTTON_SIZE: f32 = 28.0;
+/// Space the ElevenLabs credits ring takes in the header row. It fits the
+/// row, so turning the ring on never moves anything.
+const CREDIT_RING_FOOTPRINT: f32 = 30.0;
+/// Drawn diameter of the ring; it spills past its footprint into the space
+/// around the header.
+const CREDIT_RING_SIZE: f32 = 38.0;
+/// How far the ring is pushed down from centre. The header clips anything
+/// above its top edge, so this keeps the ring's top inside it. Tuned by eye
+/// at a 38 px ring; revisit if the size changes.
+const CREDIT_RING_NUDGE_Y: f32 = 7.0;
 const UPDATE_NOTIFICATION_DOT_COLOR: Color = Color::from_rgb(1.0, 0.31, 0.37);
 const UPDATE_NOTIFICATION_DOT_SIZE: f32 = 12.0;
 const COMPONENT_SURFACE_ALPHA: f32 = 0.40;
@@ -57,6 +68,7 @@ pub struct ProviderLoginStates<'a> {
     pub opencode_go: Option<&'a crate::providers::opencode_go::login::OpenCodeGoLoginState>,
     pub grok: Option<&'a crate::providers::grok::GrokLoginState>,
     pub openrouter: Option<&'a crate::providers::openrouter::login::OpenRouterLoginState>,
+    pub elevenlabs: Option<&'a crate::providers::elevenlabs::login::ElevenLabsLoginState>,
     pub zai: Option<&'a ZaiLoginState>,
 }
 
@@ -969,6 +981,7 @@ fn provider_summary(
     provider: &ProviderRuntimeState,
     detected_without_accounts: bool,
     plan: Option<&str>,
+    ring: Option<Element<'static, Message>>,
 ) -> Element<'static, Message> {
     let icon = widget::icon::icon(provider_icon_handle(
         provider.provider,
@@ -1036,6 +1049,23 @@ fn provider_summary(
     ]
     .align_y(Alignment::Center)
     .width(Length::Fill);
+
+    // The ring sits on its own layer so it is centred on the card, not in the
+    // gap between the title and the buttons.
+    if let Some(ring) = ring {
+        return card(
+            cosmic::iced::widget::Stack::new()
+                .push(hero_row)
+                .push(
+                    container(ring)
+                        .width(Length::Fill)
+                        .height(Length::Fill)
+                        .align_x(Alignment::Center)
+                        .align_y(Alignment::Center),
+                )
+                .width(Length::Fill),
+        );
+    }
 
     card(hero_row)
 }

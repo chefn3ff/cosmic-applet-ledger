@@ -2,9 +2,10 @@
 
 use crate::config::{
     Config, ManagedAntigravityAccountConfig, ManagedClaudeAccountConfig, ManagedCodexAccountConfig,
-    ManagedCopilotAccountConfig, ManagedCursorAccountConfig, ManagedGeminiAccountConfig,
-    ManagedGrokAccountConfig, ManagedKimiAccountConfig, ManagedMinimaxAccountConfig,
-    ManagedOpenCodeGoAccountConfig, ManagedOpenRouterAccountConfig, ManagedZaiAccountConfig,
+    ManagedCopilotAccountConfig, ManagedCursorAccountConfig, ManagedElevenLabsAccountConfig,
+    ManagedGeminiAccountConfig, ManagedGrokAccountConfig, ManagedKimiAccountConfig,
+    ManagedMinimaxAccountConfig, ManagedOpenCodeGoAccountConfig, ManagedOpenRouterAccountConfig,
+    ManagedZaiAccountConfig,
 };
 use crate::error::AppError;
 use crate::model::{AppState, AuthState, ProviderAccountRuntimeState, ProviderId, UsageSnapshot};
@@ -73,6 +74,7 @@ pub enum ProviderLoginKind {
     OpenCodeGo,
     Grok,
     OpenRouter,
+    ElevenLabs,
 }
 
 #[derive(Debug, Clone)]
@@ -134,6 +136,7 @@ pub enum ProviderAccountHandle {
     OpenCodeGo(ManagedOpenCodeGoAccountConfig),
     Grok(ManagedGrokAccountConfig),
     OpenRouter(ManagedOpenRouterAccountConfig),
+    ElevenLabs(ManagedElevenLabsAccountConfig),
 }
 
 pub trait ProviderAdapter: Send + Sync {

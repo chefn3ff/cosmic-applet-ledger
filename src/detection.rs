@@ -43,6 +43,7 @@ fn markers(provider: ProviderId) -> &'static [Marker] {
     const GROK: [Marker; 2] = [dir(".grok"), file(".grok/auth.json")];
     const ZAI: [Marker; 0] = [];
     const OPENROUTER: [Marker; 0] = [];
+    const ELEVENLABS: [Marker; 0] = [];
     match provider {
         ProviderId::Antigravity => &ANTIGRAVITY,
         ProviderId::Claude => &CLAUDE,
@@ -55,6 +56,7 @@ fn markers(provider: ProviderId) -> &'static [Marker] {
         ProviderId::Minimax => &MINIMAX,
         ProviderId::OpenCodeGo => &OPENCODE_GO,
         ProviderId::OpenRouter => &OPENROUTER,
+        ProviderId::ElevenLabs => &ELEVENLABS,
         ProviderId::Zai => &ZAI,
     }
 }

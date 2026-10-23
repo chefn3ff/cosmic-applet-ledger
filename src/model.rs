@@ -14,6 +14,8 @@ pub enum ProviderId {
     Codex,
     Copilot,
     Cursor,
+    #[serde(rename = "elevenlabs")]
+    ElevenLabs,
     Gemini,
     Grok,
     Kimi,
@@ -24,12 +26,13 @@ pub enum ProviderId {
 }
 
 impl ProviderId {
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 13] = [
         Self::Antigravity,
         Self::Claude,
         Self::Codex,
         Self::Copilot,
         Self::Cursor,
+        Self::ElevenLabs,
         Self::Gemini,
         Self::Grok,
         Self::Kimi,
@@ -47,6 +50,7 @@ impl ProviderId {
             Self::Codex => "Codex",
             Self::Copilot => "Copilot",
             Self::Cursor => "Cursor",
+            Self::ElevenLabs => "ElevenLabs",
             Self::Gemini => "Gemini",
             Self::Grok => "Grok",
             Self::Kimi => "Kimi",
@@ -136,6 +140,17 @@ pub struct UsageSnapshot {
     pub tokens_by_day: Vec<DayTokenUsage>,
     #[serde(default)]
     pub tokens_by_model: Vec<ModelTokenUsage>,
+    #[serde(default)]
+    pub credits_by_key: Vec<KeyCreditUsage>,
+}
+
+/// Credits spent through one API key in the current billing period.
+/// `key_name` is `None` for usage that did not go through a key (e.g. the
+/// provider's own web app).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct KeyCreditUsage {
+    pub key_name: Option<String>,
+    pub credits: u64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -428,6 +443,7 @@ mod tests {
             identity: ProviderIdentity::default(),
             tokens_by_day: Vec::new(),
             tokens_by_model: Vec::new(),
+            credits_by_key: Vec::new(),
         }
     }
 

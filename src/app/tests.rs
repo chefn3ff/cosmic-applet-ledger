@@ -895,6 +895,7 @@ fn account_pager_selects_the_next_account() {
         identity: ProviderIdentity::default(),
         tokens_by_day: Vec::new(),
         tokens_by_model: Vec::new(),
+        credits_by_key: Vec::new(),
     });
     let _ = app.page_provider_account(super::PagerDirection::Next);
 
@@ -1014,6 +1015,7 @@ fn selected_provider_bar_layout_uses_first_panel_window() {
         identity: ProviderIdentity::default(),
         tokens_by_day: Vec::new(),
         tokens_by_model: Vec::new(),
+        credits_by_key: Vec::new(),
     });
 
     state
@@ -1052,6 +1054,7 @@ fn applet_bar_layout_preserves_single_bar_shape() {
         identity: ProviderIdentity::default(),
         tokens_by_day: Vec::new(),
         tokens_by_model: Vec::new(),
+        credits_by_key: Vec::new(),
     };
 
     let layout = applet_bar_layout(
@@ -1106,6 +1109,7 @@ fn state_with_account_percents(percents: &[f32]) -> AppState {
             identity: ProviderIdentity::default(),
             tokens_by_day: Vec::new(),
             tokens_by_model: Vec::new(),
+            credits_by_key: Vec::new(),
         });
         state.upsert_account(account);
     }
@@ -1157,7 +1161,9 @@ pub(super) fn test_app(refresh_owner: Option<RefreshOwner>) -> AppModel {
         grok_login: None,
         grok_login_handle: None,
         openrouter_login: None,
+        elevenlabs_login: None,
         openrouter_login_handle: None,
+        elevenlabs_login_handle: None,
         zai_login: None,
         zai_login_handle: None,
     }
@@ -1474,7 +1480,10 @@ fn delete_account_requests_refresh_for_all_providers() {
                 app.config.selected_gemini_account_ids = vec![keep_id.to_string()];
                 "remove".to_string()
             }
-            ProviderId::Grok | ProviderId::OpenCodeGo | ProviderId::OpenRouter => continue,
+            ProviderId::ElevenLabs
+            | ProviderId::Grok
+            | ProviderId::OpenCodeGo
+            | ProviderId::OpenRouter => continue,
             ProviderId::Kimi => {
                 app.config.kimi_managed_accounts.push(kimi_account(keep_id));
                 app.config

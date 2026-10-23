@@ -416,6 +416,7 @@ pub fn parse(
         },
         tokens_by_day,
         tokens_by_model,
+        credits_by_key: Vec::new(),
     })
 }
 
