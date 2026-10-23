@@ -896,7 +896,7 @@ dependencies = [
 
 [[package]]
 name = "cosmic-applet-ledger"
-version = "0.2.2"
+version = "0.3.0"
 dependencies = [
  "base64",
  "chrono",

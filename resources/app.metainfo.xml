@@ -59,6 +59,11 @@
     <keyword>Applet</keyword>
   </keywords>
   <releases>
+    <release type="stable" version="0.3.0" date="2026-10-23">
+      <description>
+        <p>Adds ElevenLabs: monthly credits with reset time, credits by API key, and an optional credits ring in every other provider's header.</p>
+      </description>
+    </release>
     <release type="stable" version="0.2.2" date="2026-10-18">
       <description>
         <p>Security fixes: Claude sign-in no longer exposes the PKCE verifier, and TLS dependencies are updated.</p>
