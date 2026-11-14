@@ -28,15 +28,15 @@ Ledger is built on [YapCap](https://github.com/TopiCsarno/yapcap) by Topi Csarno
 
 ## What Ledger adds to YapCap
 
-| | |
+| Area | What changed |
 | --- | --- |
-| 🎨 **Redesign** | A flat, minimalist popup, settings and account screens, inspired by Omarchy |
-| ➕ **New providers** | OpenRouter, ElevenLabs and Fish Audio, on top of YapCap's eleven |
-| 📊 **Token charts** | **TOKENS BY DAY** (last seven days) and **TOKENS BY MODEL** for Claude and OpenRouter |
-| 🔑 **Credits by key** | ElevenLabs credits split by API key for the current billing period |
-| ⭕ **Credit rings** | An ElevenLabs or Fish Audio credit gauge in every other provider's header; click it to swap between the two |
-| 🔒 **Hardening** | Credential files written atomically, a separate OAuth `state` for Claude sign-in, current TLS libraries, and clearer API-key errors |
-| 🔄 **Sync** | Every setting change reaches every running Ledger process |
+| **Redesign** | A flat, minimalist popup, settings and account screens, inspired by Omarchy |
+| **New providers** | OpenRouter, ElevenLabs and Fish Audio, on top of YapCap's eleven |
+| **Token charts** | **TOKENS BY DAY** (last seven days) and **TOKENS BY MODEL** for Claude and OpenRouter |
+| **Credits by key** | ElevenLabs credits split by API key for the current billing period |
+| **Credit rings** | An ElevenLabs or Fish Audio credit gauge in every other provider's header; click it to swap between the two |
+| **Hardening** | Credential files written atomically, a separate OAuth `state` for Claude sign-in, current TLS libraries, and clearer API-key errors |
+| **Sync** | Every setting change reaches every running Ledger process |
 
 Full history: [CHANGELOG.md](CHANGELOG.md).
 
