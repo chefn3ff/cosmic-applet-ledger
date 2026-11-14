@@ -60,6 +60,11 @@
     <keyword>Applet</keyword>
   </keywords>
   <releases>
+    <release type="stable" version="0.4.0" date="2026-11-14">
+      <description>
+        <p>Adds Fish Audio API credit with an optional credits ring; with both rings on, click the ring to swap between ElevenLabs and Fish. New Switch Provider icon, reordered preferences, clearer ElevenLabs key errors, atomic credential writes, and OpenRouter settings now sync across processes.</p>
+      </description>
+    </release>
     <release type="stable" version="0.3.0" date="2026-10-23">
       <description>
         <p>Adds ElevenLabs: monthly credits with reset time, credits by API key, and an optional credits ring in every other provider's header.</p>
