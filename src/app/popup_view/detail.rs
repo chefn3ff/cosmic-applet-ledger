@@ -393,13 +393,14 @@ fn showable_rings(provider: ProviderId, state: &AppState, config: &Config) -> Ve
         .into_iter()
         .filter(|ring| *ring != provider && ring_switched_on(config, *ring))
         .filter(|ring| state.provider(*ring).is_some_and(|entry| entry.enabled))
-        .filter(|ring| {
-            state
-                .accounts_for(*ring)
-                .into_iter()
-                .any(|account| account.snapshot.is_some())
-        })
+        .filter(|ring| ring_snapshot(state, *ring).is_some())
         .collect()
+}
+
+/// The snapshot a ring draws: the selected (active) account's, never just the
+/// first account that happens to have cached data.
+fn ring_snapshot(state: &AppState, ring_provider: ProviderId) -> Option<&UsageSnapshot> {
+    state.active_account(ring_provider)?.snapshot.as_ref()
 }
 
 /// The credit ring for every other provider's header. With one ring on it
@@ -418,10 +419,7 @@ fn credit_ring(
         .or_else(|| showable.first().copied())?;
     let switchable = showable.len() > 1;
 
-    let snapshot = state
-        .accounts_for(shown)
-        .into_iter()
-        .find_map(|account| account.snapshot.as_ref())?;
+    let snapshot = ring_snapshot(state, shown)?;
     let window = snapshot.windows.first()?;
     let pct = window.used_percent.clamp(0.0, 100.0);
 
@@ -486,7 +484,11 @@ fn credit_ring_svg(used_percent: f32, ring_provider: ProviderId) -> Vec<u8> {
         String::new()
     };
     let mark = if ring_provider == ProviderId::Fish {
-        r##"<path transform="translate(9 9) scale(0.5833)" fill="#ffffff" fill-rule="evenodd" d="M2 12C5 6.5 9.5 5 13 5.5C15.5 5.9 17.5 7.6 19 9.8L22.5 6.5V17.5L19 14.2C17.5 16.4 15.5 18.1 13 18.5C9.5 19 5 17.5 2 12ZM7 10.2a1.1 1.1 0 1 0 0 2.2a1.1 1.1 0 0 0 0-2.2Z"/>"##
+        concat!(
+            r##"<svg x="6" y="6" width="20" height="20" viewBox="0 0 24 24">"##,
+            include_str!("../../../resources/icons/fish-ring-mark.svg.part"),
+            "</svg>"
+        )
     } else {
         r##"<rect x="12.6" y="9.5" width="2.4" height="13" rx="0.8" fill="#ffffff"/><rect x="17" y="9.5" width="2.4" height="13" rx="0.8" fill="#ffffff"/>"##
     };
@@ -523,7 +525,6 @@ fn window_value_label(snapshot: &UsageSnapshot, window: &UsageWindow) -> String 
             limit: Some(limit),
             ..
         }) = &snapshot.provider_cost
-        && *limit > 0.0
     {
         return format!(
             "${} left of ${}",
@@ -1853,7 +1854,10 @@ mod tests {
             .expect("parses"),
         );
         let mut state = AppState::empty();
-        state.upsert_provider(ProviderRuntimeState::empty(ProviderId::ElevenLabs));
+        state.upsert_provider(ProviderRuntimeState {
+            selected_account_ids: vec!["el-1".to_string()],
+            ..ProviderRuntimeState::empty(ProviderId::ElevenLabs)
+        });
         state.provider_accounts.push(account);
         state
     }
@@ -1886,9 +1890,44 @@ mod tests {
             )
             .expect("parses"),
         );
-        state.upsert_provider(ProviderRuntimeState::empty(ProviderId::Fish));
+        state.upsert_provider(ProviderRuntimeState {
+            selected_account_ids: vec!["fish-1".to_string()],
+            ..ProviderRuntimeState::empty(ProviderId::Fish)
+        });
         state.provider_accounts.push(fish);
         state
+    }
+
+    /// Codex review 2026-11-14 #6: the ring must draw the selected account,
+    /// not the first account that happens to have a cached snapshot.
+    #[test]
+    fn ring_draws_the_selected_account_not_the_first_cached_one() {
+        let mut state = state_with_elevenlabs_snapshot();
+        let mut second =
+            ProviderAccountRuntimeState::empty(ProviderId::ElevenLabs, "el-2", "Second");
+        second.snapshot = Some(
+            crate::providers::elevenlabs::quota::parse(
+                r#"{"tier":"creator","character_count":1000,"character_limit":100000}"#,
+                chrono::Utc::now(),
+            )
+            .expect("parses"),
+        );
+        state.provider_accounts.push(second);
+        state.upsert_provider(ProviderRuntimeState {
+            selected_account_ids: vec!["el-2".to_string()],
+            ..ProviderRuntimeState::empty(ProviderId::ElevenLabs)
+        });
+
+        let drawn = ring_snapshot(&state, ProviderId::ElevenLabs).expect("snapshot");
+        let limit = drawn.provider_cost.as_ref().and_then(|cost| cost.limit);
+        assert_eq!(limit, Some(100000.0));
+
+        // A selected account with no snapshot yet draws no ring at all.
+        state.upsert_provider(ProviderRuntimeState {
+            selected_account_ids: vec!["el-3".to_string()],
+            ..ProviderRuntimeState::empty(ProviderId::ElevenLabs)
+        });
+        assert!(ring_snapshot(&state, ProviderId::ElevenLabs).is_none());
     }
 
     #[test]

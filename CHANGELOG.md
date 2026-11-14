@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Fish Audio provider (API key). Shows your **API credit**, the pay-as-you-go
   balance that audio API calls spend, as dollars left of what you have topped
-  up. It does not read Plus-plan or subscription credits. Fish Audio account
+  up (or of your balance, when free credit puts it above your top-ups). It
+  uses Fish Audio's own mark. It does not read Plus-plan or subscription credits. Fish Audio account
   in demo mode (`LEDGER_DEMO=1`).
 - **Fish Credits Ring** preference, like the ElevenLabs one. With both rings
   on, the header shows one ring; click it to switch to the other service. The
@@ -34,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Credential files are written atomically (temp file, fsync, rename), so a
   crash right after a token refresh can no longer lose the new token.
 - Refresh-owner tests no longer flake when the suite runs in parallel.
+- Credit rings draw the selected account, not the first account with cached
+  data.
 
 ## [0.3.0] - 2026-10-23
 

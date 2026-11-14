@@ -43,16 +43,20 @@ fn decimal<'de, D: Deserializer<'de>>(deserializer: D) -> Result<f64, D::Error> 
 }
 
 /// The one window Fish Audio gives us: pay-as-you-go API credit spent out of
-/// everything ever topped up. There is no reset time.
+/// everything you have had to spend. There is no reset time. The total is the
+/// larger of lifetime top-ups and the current balance, because free or promo
+/// credit can push the balance past the top-ups; that way "left" is always the
+/// real balance, never a clamped figure.
 pub fn parse(body: &str, updated_at: DateTime<Utc>) -> Result<UsageSnapshot, FishError> {
     let response: ApiCreditResponse = serde_json::from_str(body).map_err(FishError::DecodeUsage)?;
 
-    let top_up = response.cumulative_top_up;
-    let used = (top_up - response.credit).max(0.0);
-    let used_percent = if top_up <= 0.0 {
-        0.0
+    let credit = response.credit;
+    let total = response.cumulative_top_up.max(credit).max(0.0);
+    let used = (total - credit).max(0.0);
+    let used_percent = if total <= 0.0 {
+        if credit < 0.0 { 100.0 } else { 0.0 }
     } else {
-        ((used / top_up) * 100.0).clamp(0.0, 100.0) as f32
+        ((used / total) * 100.0).clamp(0.0, 100.0) as f32
     };
 
     Ok(UsageSnapshot {
@@ -70,7 +74,7 @@ pub fn parse(body: &str, updated_at: DateTime<Utc>) -> Result<UsageSnapshot, Fis
         }],
         provider_cost: Some(ProviderCost {
             used,
-            limit: Some(top_up),
+            limit: Some(total),
             units: "USD".to_string(),
         }),
         extra_usage: None,
@@ -136,11 +140,19 @@ mod tests {
     }
 
     #[test]
-    fn credit_above_top_up_never_goes_negative() {
+    fn credit_above_top_up_keeps_the_real_balance() {
         // Free or promo credit can push the balance past what was topped up.
         let snapshot = parse(r#"{"credit":"60","cumulative_top_up":"50"}"#, now()).expect("parses");
         assert_eq!(snapshot.windows[0].used_percent, 0.0);
-        assert_eq!(snapshot.provider_cost.expect("cost").used, 0.0);
+        let cost = snapshot.provider_cost.expect("cost");
+        assert_eq!(cost.limit.expect("limit") - cost.used, 60.0);
+    }
+
+    #[test]
+    fn credit_with_nothing_topped_up_is_still_shown() {
+        let snapshot = parse(r#"{"credit":"3","cumulative_top_up":"0"}"#, now()).expect("parses");
+        let cost = snapshot.provider_cost.expect("cost");
+        assert_eq!(cost.limit.expect("limit") - cost.used, 3.0);
     }
 
     #[test]
