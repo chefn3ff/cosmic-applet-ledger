@@ -9,7 +9,7 @@ use serde::de::Error as _;
 use serde::{Deserialize, Deserializer};
 
 /// `GET /wallet/self/api-credit`. Unknown fields are ignored. Both amounts are
-/// dollars sent as decimal strings, e.g. `"48.93468"`.
+/// dollars sent as decimal strings, e.g. `"42.75"`.
 #[derive(Debug, Deserialize)]
 struct ApiCreditResponse {
     #[serde(deserialize_with = "decimal")]
@@ -110,14 +110,14 @@ mod tests {
         assert_eq!(snapshot.windows.len(), 1);
         let window = &snapshot.windows[0];
         assert_eq!(window.label, "API credit");
-        // (50 - 48.93468) / 50 = 2.13064 %
-        assert!((window.used_percent - 2.130_64).abs() < 0.001);
+        // (50 - 42.75) / 50 = 14.5 %
+        assert!((window.used_percent - 14.5).abs() < 0.001);
         assert_eq!(window.reset_at, None);
         assert_eq!(window.window_seconds, None);
         assert_eq!(snapshot.identity.plan, None);
 
         let cost = snapshot.provider_cost.expect("cost present");
-        assert!((cost.used - 1.065_32).abs() < 1e-9);
+        assert!((cost.used - 7.25).abs() < 1e-9);
         assert_eq!(cost.limit, Some(50.0));
         assert_eq!(cost.units, "USD");
     }

@@ -502,7 +502,7 @@ fn credit_ring_svg(used_percent: f32, ring_provider: ProviderId) -> Vec<u8> {
 /// amount in `reset_description`; everyone else uses it for reset metadata
 /// (often an RFC3339 timestamp), so they get the percentage. ElevenLabs shows
 /// raw credits ("8,200 / 30,000") from `provider_cost`; Fish Audio shows the
-/// dollars left of its top-ups ("$48.93 left of $50.00").
+/// dollars left of its top-ups ("$42.75 left of $50.00").
 fn window_value_label(snapshot: &UsageSnapshot, window: &UsageWindow) -> String {
     if snapshot.provider == ProviderId::OpenRouter
         && let Some(amount) = &window.reset_description
@@ -545,7 +545,7 @@ fn session_row_title(provider: ProviderId, window: &UsageWindow) -> String {
     }
 }
 
-/// 48.934 -> "48.93", 1234.5 -> "1,234.50". Two decimals, thousands grouped.
+/// 42.754 -> "42.75", 1234.5 -> "1,234.50". Two decimals, thousands grouped.
 fn group_money(value: f64) -> String {
     let cents = (value.max(0.0) * 100.0).round();
     let whole = (cents / 100.0).trunc();
@@ -1848,7 +1848,7 @@ mod tests {
             ProviderAccountRuntimeState::empty(ProviderId::ElevenLabs, "el-1", "ElevenLabs");
         account.snapshot = Some(
             crate::providers::elevenlabs::quota::parse(
-                r#"{"tier":"starter","character_count":13903,"character_limit":30010}"#,
+                r#"{"tier":"starter","character_count":13850,"character_limit":30000}"#,
                 chrono::Utc::now(),
             )
             .expect("parses"),
@@ -1885,7 +1885,7 @@ mod tests {
         let mut fish = ProviderAccountRuntimeState::empty(ProviderId::Fish, "fish-1", "Fish");
         fish.snapshot = Some(
             crate::providers::fish::quota::parse(
-                r#"{"_id":"x","user_id":"x","credit":"48.93468","cumulative_top_up":"50","created_at":"2026-10-28T02:49:27.106000Z","updated_at":"2026-11-14T21:46:51.007000Z","has_phone_sha256":false,"has_free_credit":null}"#,
+                r#"{"_id":"x","user_id":"x","credit":"42.75","cumulative_top_up":"50","created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-02T00:00:00Z","has_phone_sha256":false,"has_free_credit":null}"#,
                 chrono::Utc::now(),
             )
             .expect("parses"),
@@ -2010,14 +2010,14 @@ mod tests {
     #[test]
     fn fish_credit_row_shows_dollars_left_of_top_ups() {
         let snapshot = crate::providers::fish::quota::parse(
-            r#"{"credit":"48.93468","cumulative_top_up":"50"}"#,
+            r#"{"credit":"42.75","cumulative_top_up":"50"}"#,
             chrono::Utc::now(),
         )
         .expect("parses");
         let window = &snapshot.windows[0];
         assert_eq!(
             window_value_label(&snapshot, window),
-            "$48.93 left of $50.00"
+            "$42.75 left of $50.00"
         );
         assert_eq!(session_row_title(ProviderId::Fish, window), "API credit");
         assert_eq!(group_money(1_234.5), "1,234.50");

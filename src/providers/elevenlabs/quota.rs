@@ -224,21 +224,21 @@ mod tests {
 
     #[test]
     fn key_usage_sums_series_and_sorts_largest_first() {
-        let mut snapshot = snapshot_with(13_903, 30_010);
+        let mut snapshot = snapshot_with(13_850, 30_000);
         apply_key_usage(
             &mut snapshot,
-            r#"{"time":[1,2,3],"usage":{"Sam-LifeOS":[973.0,583.0,211.0],"LifeOS":[12000.0,0.0,163.0],"Idle":[0.0,0.0,0.0]}}"#,
+            r#"{"time":[1,2,3],"usage":{"Second key":[900.0,600.0,200.0],"Main key":[12000.0,0.0,150.0],"Idle":[0.0,0.0,0.0]}}"#,
         );
         assert_eq!(
             snapshot.credits_by_key,
             vec![
                 KeyCreditUsage {
-                    key_name: Some("LifeOS".to_string()),
-                    credits: 12_163,
+                    key_name: Some("Main key".to_string()),
+                    credits: 12_150,
                 },
                 KeyCreditUsage {
-                    key_name: Some("Sam-LifeOS".to_string()),
-                    credits: 1_767,
+                    key_name: Some("Second key".to_string()),
+                    credits: 1_700,
                 },
             ]
         );
@@ -247,7 +247,7 @@ mod tests {
     #[test]
     fn usage_outside_keys_becomes_a_no_key_row() {
         let mut snapshot = snapshot_with(10_000, 30_000);
-        apply_key_usage(&mut snapshot, r#"{"usage":{"LifeOS":[6000.0]}}"#);
+        apply_key_usage(&mut snapshot, r#"{"usage":{"Main key":[6000.0]}}"#);
         assert_eq!(
             snapshot.credits_by_key.last(),
             Some(&KeyCreditUsage {
@@ -260,7 +260,7 @@ mod tests {
     #[test]
     fn small_counter_drift_is_not_a_no_key_row() {
         let mut snapshot = snapshot_with(10_050, 30_000);
-        apply_key_usage(&mut snapshot, r#"{"usage":{"LifeOS":[10000.0]}}"#);
+        apply_key_usage(&mut snapshot, r#"{"usage":{"Main key":[10000.0]}}"#);
         assert_eq!(snapshot.credits_by_key.len(), 1);
     }
 
