@@ -63,7 +63,38 @@ pub fn is_active() -> bool {
     if !cfg!(debug_assertions) {
         return false;
     }
+    #[cfg(test)]
+    {
+        // Tests run in parallel threads of one process, so a process-wide env
+        // var would leak demo mode into unrelated tests. Each test thread
+        // turns demo mode on for itself with `activate_for_test`.
+        TEST_DEMO_ACTIVE.with(std::cell::Cell::get)
+    }
+    #[cfg(not(test))]
     env_truthy()
+}
+
+#[cfg(test)]
+thread_local! {
+    static TEST_DEMO_ACTIVE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Turns demo mode on for the current test thread until the guard drops.
+#[cfg(test)]
+#[must_use]
+pub fn activate_for_test() -> TestDemoGuard {
+    TEST_DEMO_ACTIVE.with(|active| active.set(true));
+    TestDemoGuard
+}
+
+#[cfg(test)]
+pub struct TestDemoGuard;
+
+#[cfg(test)]
+impl Drop for TestDemoGuard {
+    fn drop(&mut self) {
+        TEST_DEMO_ACTIVE.with(|active| active.set(false));
+    }
 }
 
 pub fn detection_snapshot() -> crate::detection::DetectionSnapshot {
@@ -1548,6 +1579,29 @@ mod tests {
     use crate::test_support;
 
     #[test]
+    fn env_var_turns_demo_on_unless_falsy() {
+        let mut env = test_support::test_env();
+        env.remove(DEMO_ENV);
+        env.remove(LEGACY_DEMO_ENV);
+        assert!(!env_truthy());
+        env.set(DEMO_ENV, "1");
+        assert!(env_truthy());
+        env.set(DEMO_ENV, "off");
+        assert!(!env_truthy());
+        env.remove(DEMO_ENV);
+        env.set(LEGACY_DEMO_ENV, "yes");
+        assert!(env_truthy());
+    }
+
+    #[test]
+    fn demo_guard_is_scoped_to_its_thread() {
+        let _demo = activate_for_test();
+        assert!(is_active());
+        let other_thread = std::thread::spawn(is_active).join().unwrap();
+        assert!(!other_thread);
+    }
+
+    #[test]
     fn build_snapshots_valid() {
         for snapshot in [
             snapshot_codex_pro(),
@@ -1603,15 +1657,9 @@ mod tests {
 
     #[test]
     fn demo_config_is_multi_account_ready() {
-        let _guard = test_support::env_lock();
-        unsafe {
-            std::env::set_var(DEMO_ENV, "1");
-        }
+        let _demo = activate_for_test();
         let mut config = Config::default();
         apply_config(&mut config);
-        unsafe {
-            std::env::remove_var(DEMO_ENV);
-        }
 
         assert_eq!(config.codex_managed_accounts.len(), 2);
         assert_eq!(config.claude_managed_accounts.len(), 2);
@@ -1649,10 +1697,7 @@ mod tests {
 
     #[test]
     fn demo_replaces_existing_account_selections() {
-        let _guard = test_support::env_lock();
-        unsafe {
-            std::env::set_var(DEMO_ENV, "1");
-        }
+        let _demo = activate_for_test();
         let mut config = Config {
             selected_codex_account_ids: vec!["real-codex".to_string()],
             selected_claude_account_ids: vec!["real-claude".to_string()],
@@ -1667,9 +1712,6 @@ mod tests {
             ..Config::default()
         };
         apply_config(&mut config);
-        unsafe {
-            std::env::remove_var(DEMO_ENV);
-        }
 
         for provider in ProviderId::ALL {
             let selected = config.selected_account_ids(provider);
@@ -1745,18 +1787,12 @@ mod tests {
 
     #[test]
     fn demo_enables_all_providers_with_accounts() {
-        let _guard = test_support::env_lock();
-        unsafe {
-            std::env::set_var(DEMO_ENV, "1");
-        }
+        let _demo = activate_for_test();
         let mut config = Config::default();
         apply_config(&mut config);
         let detection = detection_snapshot();
         let mut state = crate::runtime::load_initial_state(&config, &detection, None);
         apply(&config, &mut state);
-        unsafe {
-            std::env::remove_var(DEMO_ENV);
-        }
 
         for provider in ProviderId::ALL {
             assert!(
@@ -1777,17 +1813,11 @@ mod tests {
 
     #[test]
     fn demo_state_marks_one_active_account_per_provider() {
-        let _guard = test_support::env_lock();
-        unsafe {
-            std::env::set_var(DEMO_ENV, "1");
-        }
+        let _demo = activate_for_test();
         let mut config = Config::default();
         apply_config(&mut config);
         let mut state = AppState::empty();
         apply(&config, &mut state);
-        unsafe {
-            std::env::remove_var(DEMO_ENV);
-        }
 
         assert_eq!(
             state
@@ -1838,17 +1868,11 @@ mod tests {
 
     #[test]
     fn antigravity_demo_seeds_selected_pro_and_free_accounts() {
-        let _guard = test_support::env_lock();
-        unsafe {
-            std::env::set_var(DEMO_ENV, "1");
-        }
+        let _demo = activate_for_test();
         let mut config = Config::default();
         apply_config(&mut config);
         let mut state = AppState::empty();
         apply(&config, &mut state);
-        unsafe {
-            std::env::remove_var(DEMO_ENV);
-        }
 
         assert_eq!(
             config.selected_antigravity_account_ids,
@@ -1868,17 +1892,11 @@ mod tests {
 
     #[test]
     fn copilot_demo_seeds_free_and_overage_pro_accounts() {
-        let _guard = test_support::env_lock();
-        unsafe {
-            std::env::set_var(DEMO_ENV, "1");
-        }
+        let _demo = activate_for_test();
         let mut config = Config::default();
         apply_config(&mut config);
         let mut state = AppState::empty();
         apply(&config, &mut state);
-        unsafe {
-            std::env::remove_var(DEMO_ENV);
-        }
 
         assert_eq!(
             config.selected_copilot_account_ids,
@@ -1939,17 +1957,11 @@ mod tests {
 
     #[test]
     fn minimax_demo_seeds_one_account_with_token_windows() {
-        let _guard = test_support::env_lock();
-        unsafe {
-            std::env::set_var(DEMO_ENV, "1");
-        }
+        let _demo = activate_for_test();
         let mut config = Config::default();
         apply_config(&mut config);
         let mut state = AppState::empty();
         apply(&config, &mut state);
-        unsafe {
-            std::env::remove_var(DEMO_ENV);
-        }
 
         assert_eq!(
             config.selected_minimax_account_ids,
@@ -1970,17 +1982,11 @@ mod tests {
 
     #[test]
     fn kimi_demo_seeds_one_account_with_usage_windows() {
-        let _guard = test_support::env_lock();
-        unsafe {
-            std::env::set_var(DEMO_ENV, "1");
-        }
+        let _demo = activate_for_test();
         let mut config = Config::default();
         apply_config(&mut config);
         let mut state = AppState::empty();
         apply(&config, &mut state);
-        unsafe {
-            std::env::remove_var(DEMO_ENV);
-        }
 
         assert_eq!(
             config.selected_kimi_account_ids,
@@ -2007,17 +2013,11 @@ mod tests {
 
     #[test]
     fn opencode_go_demo_seeds_one_account_with_usage_windows() {
-        let _guard = test_support::env_lock();
-        unsafe {
-            std::env::set_var(DEMO_ENV, "1");
-        }
+        let _demo = activate_for_test();
         let mut config = Config::default();
         apply_config(&mut config);
         let mut state = AppState::empty();
         apply(&config, &mut state);
-        unsafe {
-            std::env::remove_var(DEMO_ENV);
-        }
 
         assert_eq!(
             config.selected_opencode_go_account_ids,
@@ -2046,17 +2046,11 @@ mod tests {
 
     #[test]
     fn zai_demo_seeds_one_account_with_coding_plan_windows() {
-        let _guard = test_support::env_lock();
-        unsafe {
-            std::env::set_var(DEMO_ENV, "1");
-        }
+        let _demo = activate_for_test();
         let mut config = Config::default();
         apply_config(&mut config);
         let mut state = AppState::empty();
         apply(&config, &mut state);
-        unsafe {
-            std::env::remove_var(DEMO_ENV);
-        }
 
         assert_eq!(
             config.selected_zai_account_ids,

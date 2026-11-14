@@ -632,8 +632,8 @@ fn cursor_reauthentication_starts_local_rescan() {
 
 #[test]
 fn demo_codex_account_selection_keeps_account_rows() {
-    let mut env = crate::test_support::test_env();
-    env.set("YAPCAP_DEMO", "1");
+    let _env = crate::test_support::test_env();
+    let _demo = crate::demo_env::activate_for_test();
     let mut app = test_app(None);
     crate::demo_env::apply_config(&mut app.config);
     crate::demo_env::apply(&app.config, &mut app.state);
