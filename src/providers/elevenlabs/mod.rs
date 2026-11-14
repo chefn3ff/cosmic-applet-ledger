@@ -53,7 +53,8 @@ pub(crate) async fn fetch_with_endpoint(
     let response = send_request(&client, endpoint, &api_key).await?;
     let status = response.status();
     if status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::FORBIDDEN {
-        return Err(ElevenLabsError::LoginRequired);
+        let body = response.text().await.unwrap_or_default();
+        return Err(auth_error_from_body(&body));
     }
     if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
         let retry_after_secs = response
@@ -96,6 +97,33 @@ pub(crate) async fn fetch_with_endpoint(
     Ok(snapshot)
 }
 
+/// ElevenLabs answers 401 for a key without the User: Read permission too,
+/// with `{"detail":{"status":"missing_permissions","message":...}}`. That key
+/// is valid, so it gets its own message instead of "login required".
+fn auth_error_from_body(body: &str) -> ElevenLabsError {
+    let detail = serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|value| value.get("detail").cloned());
+    let status = detail
+        .as_ref()
+        .and_then(|detail| detail.get("status"))
+        .and_then(serde_json::Value::as_str);
+    if status == Some("missing_permissions") {
+        let message = detail
+            .as_ref()
+            .and_then(|detail| detail.get("message"))
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default();
+        tracing::warn!(
+            elevenlabs_message = message,
+            "ElevenLabs API key is missing a permission"
+        );
+        ElevenLabsError::MissingPermission
+    } else {
+        ElevenLabsError::LoginRequired
+    }
+}
+
 async fn send_request(
     client: &reqwest::Client,
     endpoint: &str,
@@ -114,4 +142,33 @@ async fn send_request(
         .send()
         .await
         .map_err(ElevenLabsError::UsageRequest)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::auth_error_from_body;
+    use crate::error::ElevenLabsError;
+
+    #[test]
+    fn missing_permission_body_gets_its_own_error() {
+        let body = r#"{"detail":{"status":"missing_permissions","message":"The API key you used is missing the permission user_read to execute this operation."}}"#;
+        assert!(matches!(
+            auth_error_from_body(body),
+            ElevenLabsError::MissingPermission
+        ));
+    }
+
+    #[test]
+    fn other_auth_failures_still_ask_for_login() {
+        for body in [
+            r#"{"detail":{"status":"invalid_api_key","message":"Invalid API key"}}"#,
+            "",
+            "not json",
+        ] {
+            assert!(matches!(
+                auth_error_from_body(body),
+                ElevenLabsError::LoginRequired
+            ));
+        }
+    }
 }

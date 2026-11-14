@@ -45,5 +45,22 @@ pub(crate) fn normalize_api_key(api_key: &str) -> Result<String, String> {
     if api_key.chars().any(char::is_control) {
         return Err("API key contains invalid characters".to_string());
     }
+    // ElevenLabs lists a key ID next to each key; only the key itself starts
+    // with `sk_`, and an ID sent as a key gets HTTP 400 on every request.
+    if !api_key.starts_with("sk_") {
+        return Err("That looks like a key ID. ElevenLabs API keys start with sk_".to_string());
+    }
     Ok(api_key.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalize_api_key;
+
+    #[test]
+    fn rejects_values_that_are_not_api_keys() {
+        assert!(normalize_api_key("").is_err());
+        assert!(normalize_api_key(&"a1".repeat(32)).is_err());
+        assert_eq!(normalize_api_key("  sk_abc123 ").unwrap(), "sk_abc123");
+    }
 }

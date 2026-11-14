@@ -146,6 +146,7 @@ impl AppError {
             Self::Provider(ProviderError::OpenCodeGo(e)) => e.rate_limit_retry_after_secs(),
             Self::Provider(ProviderError::Grok(e)) => e.rate_limit_retry_after_secs(),
             Self::Provider(ProviderError::ElevenLabs(e)) => e.rate_limit_retry_after_secs(),
+            Self::Provider(ProviderError::OpenRouter(e)) => e.rate_limit_retry_after_secs(),
             _ => None,
         }
     }
@@ -929,6 +930,14 @@ pub enum OpenRouterError {
 
 impl OpenRouterError {
     #[must_use]
+    pub fn rate_limit_retry_after_secs(&self) -> Option<u64> {
+        match self {
+            Self::RateLimited { retry_after_secs } => *retry_after_secs,
+            _ => None,
+        }
+    }
+
+    #[must_use]
     pub fn is_network_unavailable(&self) -> bool {
         matches!(self, Self::UsageRequest(source) if request_could_not_reach_network(source))
     }
@@ -958,6 +967,8 @@ pub enum ElevenLabsError {
     LoginRequired,
     #[error("ElevenLabs API key is invalid")]
     InvalidApiKey,
+    #[error("ElevenLabs API key needs the User: Read permission")]
+    MissingPermission,
     #[error("ElevenLabs request failed")]
     UsageRequest(#[source] reqwest::Error),
     #[error("ElevenLabs endpoint returned HTTP {status}")]
@@ -993,7 +1004,10 @@ impl ElevenLabsError {
             Self::RateLimited { .. } => true,
             Self::UsageRequest(source) => request_could_not_reach_network(source),
             Self::UsageHttp { status } => matches!(*status, 500 | 502 | 503 | 504),
-            Self::LoginRequired | Self::InvalidApiKey | Self::DecodeUsage(_) => false,
+            Self::LoginRequired
+            | Self::InvalidApiKey
+            | Self::MissingPermission
+            | Self::DecodeUsage(_) => false,
         }
     }
 }
@@ -1240,6 +1254,28 @@ mod tests {
         }));
         assert_eq!(err.rate_limit_retry_after_secs(), Some(42));
         assert!(err.is_transient());
+        assert!(!err.requires_user_action());
+    }
+
+    #[test]
+    fn openrouter_rate_limit_routes_retry_after_through_app_error() {
+        let err = AppError::Provider(ProviderError::OpenRouter(OpenRouterError::RateLimited {
+            retry_after_secs: Some(42),
+        }));
+        assert_eq!(err.rate_limit_retry_after_secs(), Some(42));
+        assert!(err.is_transient());
+    }
+
+    #[test]
+    fn elevenlabs_missing_permission_says_which_permission() {
+        let err = AppError::Provider(ProviderError::ElevenLabs(
+            ElevenLabsError::MissingPermission,
+        ));
+        assert!(err.user_message().contains("User: Read"));
+        assert!(!err.is_transient());
+        // Not an action-required state: the card shows this message instead of
+        // the generic reauthenticate badge, and the retry picks up a permission
+        // added to the same key on the ElevenLabs site.
         assert!(!err.requires_user_action());
     }
 

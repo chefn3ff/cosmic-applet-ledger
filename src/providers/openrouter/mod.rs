@@ -193,8 +193,9 @@ async fn send_request(
     api_key: &str,
 ) -> Result<reqwest::Response, OpenRouterError> {
     let authorization = format!("Bearer {api_key}");
-    let authorization = reqwest::header::HeaderValue::from_str(&authorization)
+    let mut authorization = reqwest::header::HeaderValue::from_str(&authorization)
         .map_err(|_| OpenRouterError::InvalidApiKey)?;
+    authorization.set_sensitive(true);
 
     client
         .get(endpoint)

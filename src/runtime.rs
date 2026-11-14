@@ -1027,6 +1027,36 @@ mod tests {
         assert!(account.snapshot.is_some());
     }
 
+    /// Issue #31: five ElevenLabs HTTP 400s inside 1.2 s. A 400 is not
+    /// transient, so the account backs off for at least five minutes and the
+    /// automatic loop cannot repeat it; only user clicks can.
+    #[tokio::test]
+    async fn elevenlabs_http_400_backs_off_instead_of_retrying() {
+        let previous = ProviderRuntimeState::empty(ProviderId::ElevenLabs);
+        let previous_account =
+            ProviderAccountRuntimeState::empty(ProviderId::ElevenLabs, "elevenlabs-1", "Voice");
+
+        let result = refresh_provider_account(
+            ProviderId::ElevenLabs,
+            true,
+            Some(&previous),
+            Some(&previous_account),
+            "elevenlabs-1".to_string(),
+            "Voice".to_string(),
+            async {
+                Err(AppError::from(crate::error::ElevenLabsError::UsageHttp {
+                    status: 400,
+                }))
+            },
+        )
+        .await;
+        let account = result.accounts.first().unwrap();
+
+        assert!(account.is_backing_off());
+        let wait = account.retry_after.unwrap() - Utc::now();
+        assert!(wait >= chrono::Duration::seconds(299));
+    }
+
     #[tokio::test]
     async fn refresh_provider_disabled_returns_disabled_state() {
         let result = refresh_provider_account(
