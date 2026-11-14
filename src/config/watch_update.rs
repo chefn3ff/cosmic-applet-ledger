@@ -3,135 +3,37 @@
 use super::Config;
 
 impl Config {
+    /// Applies the fields another Ledger process changed. `keys` are config
+    /// field names (the `set_changed!` keys in `config.rs`), so fields are
+    /// copied by name through serde instead of a hand-kept list per field;
+    /// a new field syncs without touching this file. An empty `keys` means
+    /// the whole configuration was replaced.
     pub fn apply_watcher_update(&mut self, update: Self, keys: &[&str]) {
         if keys.is_empty() {
             *self = update;
             return;
         }
+        let (Ok(serde_json::Value::Object(mut current)), Ok(serde_json::Value::Object(incoming))) =
+            (serde_json::to_value(&*self), serde_json::to_value(&update))
+        else {
+            tracing::warn!("config watcher update could not be serialized; ignored");
+            return;
+        };
+        let mut changed = false;
         for key in keys {
-            if !self.apply_general_watcher_key(&update, key) {
-                self.apply_account_watcher_key(&update, key);
+            if let Some(value) = incoming.get(*key) {
+                current.insert((*key).to_string(), value.clone());
+                changed = true;
             }
         }
-    }
-
-    fn apply_general_watcher_key(&mut self, update: &Self, key: &str) -> bool {
-        match key {
-            "refresh_interval_seconds" => {
-                self.refresh_interval_seconds = update.refresh_interval_seconds;
-            }
-            "reset_time_format" => self.reset_time_format = update.reset_time_format,
-            "usage_amount_format" => self.usage_amount_format = update.usage_amount_format,
-            "panel_icon_style" => self.panel_icon_style = update.panel_icon_style,
-            "selected_provider" => self.selected_provider = update.selected_provider,
-            "provider_visibility_mode" => {
-                self.provider_visibility_mode = update.provider_visibility_mode;
-            }
-            "codex_enablement" => self.codex_enablement = update.codex_enablement,
-            "claude_enablement" => self.claude_enablement = update.claude_enablement,
-            "cursor_enablement" => self.cursor_enablement = update.cursor_enablement,
-            "gemini_enablement" => self.gemini_enablement = update.gemini_enablement,
-            "copilot_enablement" => self.copilot_enablement = update.copilot_enablement,
-            "minimax_enablement" => self.minimax_enablement = update.minimax_enablement,
-            "zai_enablement" => self.zai_enablement = update.zai_enablement,
-            "kimi_enablement" => self.kimi_enablement = update.kimi_enablement,
-            "antigravity_enablement" => {
-                self.antigravity_enablement = update.antigravity_enablement;
-            }
-            "opencode_go_enablement" => {
-                self.opencode_go_enablement = update.opencode_go_enablement;
-            }
-            "grok_enablement" => {
-                self.grok_enablement = update.grok_enablement;
-            }
-            "elevenlabs_enablement" => self.elevenlabs_enablement = update.elevenlabs_enablement,
-            "elevenlabs_ring_enabled" => {
-                self.elevenlabs_ring_enabled = update.elevenlabs_ring_enabled;
-            }
-            "log_level" => self.log_level.clone_from(&update.log_level),
-            _ => return false,
+        if !changed {
+            return;
         }
-        true
-    }
-
-    fn apply_account_watcher_key(&mut self, update: &Self, key: &str) {
-        match key {
-            "selected_codex_account_ids" => {
-                self.selected_codex_account_ids = update.selected_codex_account_ids.clone();
+        match serde_json::from_value(serde_json::Value::Object(current)) {
+            Ok(merged) => *self = merged,
+            Err(error) => {
+                tracing::warn!(%error, "config watcher update could not be applied; ignored");
             }
-            "codex_managed_accounts" => {
-                self.codex_managed_accounts = update.codex_managed_accounts.clone();
-            }
-            "selected_claude_account_ids" => {
-                self.selected_claude_account_ids = update.selected_claude_account_ids.clone();
-            }
-            "claude_managed_accounts" => {
-                self.claude_managed_accounts = update.claude_managed_accounts.clone();
-            }
-            "selected_cursor_account_ids" => {
-                self.selected_cursor_account_ids = update.selected_cursor_account_ids.clone();
-            }
-            "cursor_managed_accounts" => {
-                self.cursor_managed_accounts = update.cursor_managed_accounts.clone();
-            }
-            "selected_gemini_account_ids" => {
-                self.selected_gemini_account_ids = update.selected_gemini_account_ids.clone();
-            }
-            "gemini_managed_accounts" => {
-                self.gemini_managed_accounts = update.gemini_managed_accounts.clone();
-            }
-            "selected_copilot_account_ids" => {
-                self.selected_copilot_account_ids = update.selected_copilot_account_ids.clone();
-            }
-            "copilot_managed_accounts" => {
-                self.copilot_managed_accounts = update.copilot_managed_accounts.clone();
-            }
-            "selected_minimax_account_ids" => {
-                self.selected_minimax_account_ids = update.selected_minimax_account_ids.clone();
-            }
-            "minimax_managed_accounts" => {
-                self.minimax_managed_accounts = update.minimax_managed_accounts.clone();
-            }
-            "selected_zai_account_ids" => {
-                self.selected_zai_account_ids = update.selected_zai_account_ids.clone();
-            }
-            "zai_managed_accounts" => {
-                self.zai_managed_accounts = update.zai_managed_accounts.clone();
-            }
-            "selected_kimi_account_ids" => {
-                self.selected_kimi_account_ids = update.selected_kimi_account_ids.clone();
-            }
-            "kimi_managed_accounts" => {
-                self.kimi_managed_accounts = update.kimi_managed_accounts.clone();
-            }
-            "selected_antigravity_account_ids" => {
-                self.selected_antigravity_account_ids =
-                    update.selected_antigravity_account_ids.clone();
-            }
-            "antigravity_managed_accounts" => {
-                self.antigravity_managed_accounts = update.antigravity_managed_accounts.clone();
-            }
-            "selected_opencode_go_account_ids" => {
-                self.selected_opencode_go_account_ids =
-                    update.selected_opencode_go_account_ids.clone();
-            }
-            "opencode_go_managed_accounts" => {
-                self.opencode_go_managed_accounts = update.opencode_go_managed_accounts.clone();
-            }
-            "selected_grok_account_ids" => {
-                self.selected_grok_account_ids = update.selected_grok_account_ids.clone();
-            }
-            "grok_managed_accounts" => {
-                self.grok_managed_accounts = update.grok_managed_accounts.clone();
-            }
-            "selected_elevenlabs_account_ids" => {
-                self.selected_elevenlabs_account_ids =
-                    update.selected_elevenlabs_account_ids.clone();
-            }
-            "elevenlabs_managed_accounts" => {
-                self.elevenlabs_managed_accounts = update.elevenlabs_managed_accounts.clone();
-            }
-            _ => {}
         }
     }
 }
@@ -314,6 +216,57 @@ mod tests {
         assert_eq!(config.selected_grok_account_ids, ["grok-1"]);
         assert_eq!(config.grok_managed_accounts[0].id, "grok-1");
         assert_eq!(config.codex_enablement, ProviderEnablement::Auto);
+    }
+
+    #[test]
+    fn every_config_field_syncs_by_its_key() {
+        let _demo = crate::demo_env::activate_for_test();
+        let mut update = Config {
+            refresh_interval_seconds: 1800,
+            elevenlabs_ring_enabled: false,
+            log_level: "debug".to_string(),
+            ..Config::default()
+        };
+        crate::demo_env::apply_config(&mut update);
+        for provider in crate::model::ProviderId::ALL {
+            *crate::config::provider_enablement_mut(&mut update, provider) =
+                ProviderEnablement::Disabled;
+        }
+        let update_json = serde_json::to_value(&update).unwrap();
+        let default_json = serde_json::to_value(Config::default()).unwrap();
+
+        for (key, expected) in update_json.as_object().unwrap() {
+            if default_json[key] == *expected {
+                continue;
+            }
+            let mut config = Config::default();
+            config.apply_watcher_update(update.clone(), &[key.as_str()]);
+            let applied = serde_json::to_value(&config).unwrap();
+            assert_eq!(&applied[key], expected, "watcher did not sync `{key}`");
+            for (other, value) in applied.as_object().unwrap() {
+                if other != key {
+                    assert_eq!(value, &default_json[other], "`{key}` changed `{other}`");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn openrouter_changes_sync_across_processes() {
+        let mut config = Config::default();
+        let update = Config {
+            openrouter_enablement: ProviderEnablement::Disabled,
+            selected_openrouter_account_ids: vec!["openrouter-2".to_string()],
+            ..Config::default()
+        };
+
+        config.apply_watcher_update(
+            update,
+            &["openrouter_enablement", "selected_openrouter_account_ids"],
+        );
+
+        assert_eq!(config.openrouter_enablement, ProviderEnablement::Disabled);
+        assert_eq!(config.selected_openrouter_account_ids, ["openrouter-2"]);
     }
 
     #[test]
