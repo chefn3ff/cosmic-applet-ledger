@@ -603,32 +603,39 @@ fn checked_account_file_path(
     }
 }
 
+/// Writes `contents` so a crash leaves either the old file or the new one,
+/// never a truncated one: a fresh 0600 temp file in the same folder (created
+/// with `O_EXCL`, so it can't be a planted symlink), fsync, rename over
+/// `path`, then fsync the folder so the rename itself survives power loss.
+/// The rename replaces a symlink at `path` rather than following it.
 fn write_checked_file(path: &Path, contents: &[u8]) -> Result<(), AccountStorageError> {
-    let mut options = OpenOptions::new();
-    options.write(true).create(true).truncate(true);
+    let write_error = |source| AccountStorageError::WriteFile {
+        path: path.to_path_buf(),
+        source,
+    };
+    let dir = path
+        .parent()
+        .filter(|dir| !dir.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let mut temp = tempfile::Builder::new()
+        .prefix(".ledger-write-")
+        .tempfile_in(dir)
+        .map_err(write_error)?;
     #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.custom_flags(libc::O_NOFOLLOW).mode(0o600);
-    }
-    let mut file = options
-        .open(path)
-        .map_err(|source| AccountStorageError::WriteFile {
-            path: path.to_path_buf(),
-            source,
-        })?;
-    #[cfg(unix)]
-    file.set_permissions(fs::Permissions::from_mode(0o600))
+    temp.as_file()
+        .set_permissions(fs::Permissions::from_mode(0o600))
         .map_err(|source| AccountStorageError::SetPermissions {
             path: path.to_path_buf(),
             source,
         })?;
-    std::io::Write::write_all(&mut file, contents).map_err(|source| {
-        AccountStorageError::WriteFile {
-            path: path.to_path_buf(),
-            source,
-        }
-    })?;
+    std::io::Write::write_all(&mut temp, contents).map_err(write_error)?;
+    temp.as_file().sync_all().map_err(write_error)?;
+    temp.persist(path)
+        .map_err(|error| write_error(error.error))?;
+    #[cfg(unix)]
+    fs::File::open(dir)
+        .and_then(|dir| dir.sync_all())
+        .map_err(write_error)?;
     Ok(())
 }
 

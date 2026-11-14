@@ -499,3 +499,32 @@ fn set_private_file_permissions_restricts_to_owner_read_write() {
     let mode = fs::metadata(&file).unwrap().permissions().mode() & 0o777;
     assert_eq!(mode, 0o600);
 }
+
+/// C15: a token rewrite replaces the file by rename (new inode, same folder),
+/// so a crash mid-write can never leave a truncated `tokens.json`.
+#[cfg(unix)]
+#[test]
+fn credential_writes_replace_the_file_atomically() {
+    use std::os::unix::fs::MetadataExt;
+
+    let dir = test_dir("atomic-write");
+    fs::create_dir_all(&dir).unwrap();
+    let path = dir.join(TOKENS_FILE);
+    write_checked_file(&path, b"old refresh token").unwrap();
+    let old_inode = fs::metadata(&path).unwrap().ino();
+
+    write_checked_file(&path, b"new refresh token").unwrap();
+
+    assert_eq!(fs::read_to_string(&path).unwrap(), "new refresh token");
+    assert_ne!(fs::metadata(&path).unwrap().ino(), old_inode);
+    assert_eq!(fs::metadata(&path).unwrap().mode() & 0o777, 0o600);
+    let leftovers: Vec<_> = fs::read_dir(&dir)
+        .unwrap()
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_name() != TOKENS_FILE)
+        .collect();
+    assert!(
+        leftovers.is_empty(),
+        "temp files left behind: {leftovers:?}"
+    );
+}
