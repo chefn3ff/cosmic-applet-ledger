@@ -1334,14 +1334,14 @@ fn snapshot_fish() -> UsageSnapshot {
         headline: UsageHeadline(0),
         windows: vec![UsageWindow {
             label: "API credit".to_string(),
-            used_percent: 1.065_32 / 50.0 * 100.0,
+            used_percent: 7.25 / 50.0 * 100.0,
             reset_at: None,
             window_seconds: None,
             reset_description: None,
             group: None,
         }],
         provider_cost: Some(ProviderCost {
-            used: 1.065_32,
+            used: 7.25,
             limit: Some(50.0),
             units: "USD".to_string(),
         }),

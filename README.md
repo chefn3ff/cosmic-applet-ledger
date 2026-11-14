@@ -2,63 +2,106 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="resources/ledger-icon/svg/ledger-lockup-mark-dark.svg">
-  <img src="resources/ledger-icon/svg/ledger-lockup-mark-dark.svg" alt="Ledger" width="360">
+  <img src="resources/ledger-icon/svg/ledger-lockup-mark-dark.svg" alt="Ledger" width="320">
 </picture>
 
 <br>
 <br>
 
-**A flat, minimalist COSMIC panel applet for tracking AI usage, rate limits, and tokens across coding agents and providers.**
+**Your AI usage limits, credits and tokens for fourteen providers, one click away in the COSMIC panel.**
 
 [![CI](https://github.com/chefn3ff/cosmic-applet-ledger/actions/workflows/ci.yml/badge.svg)](https://github.com/chefn3ff/cosmic-applet-ledger/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/chefn3ff/cosmic-applet-ledger)](https://github.com/chefn3ff/cosmic-applet-ledger/releases/latest)
 [![License: MPL-2.0](https://img.shields.io/badge/license-MPL--2.0-blue)](LICENSE)
 
-*Forked from [YapCap](https://github.com/TopiCsarno/yapcap) by Topi Csarno, redesigned with a minimalist aesthetic inspired by Omarchy.*
+<img src="resources/screenshots/hero.png" alt="Ledger pages for Claude (limits and token charts), ElevenLabs (credits by key) and Codex with the Fish Audio credits ring" width="820">
+
+<sub>Screenshots use Ledger's built-in demo data.</sub>
 
 </div>
 
 ---
 
-Ledger sits in the COSMIC panel and shows how much of your AI quota you've used — session and weekly limits, spend, and token usage — for every provider you connect. It talks to provider APIs directly with accounts you add in Ledger. No telemetry, no cloud sync, no third-party servers.
+Ledger sits in the COSMIC panel and shows how close you are to every AI limit you pay for: session and weekly windows, spend, credits and token use. It talks to each provider's own API with accounts you add in Ledger. No telemetry, no cloud sync, no third-party servers.
 
-## Features
+Ledger is built on [YapCap](https://github.com/TopiCsarno/yapcap) by Topi Csarno, whose provider engine, multi-account support and sign-in flows it keeps.
 
-- **One layout for every provider.** Each provider's page shows a **LIMITS** card with its session and weekly windows and a reset countdown.
-- **Token charts.** **TOKENS BY DAY** covers the last seven days (with today highlighted) and **TOKENS BY MODEL** ranks your most-used models. Available for Claude and OpenRouter.
-- **Fourteen providers** — see [Providers](#providers).
-- **Multiple accounts per provider**, with an in-app sign-in flow for each.
-- **Automatic detection.** Providers found on your machine are enabled for you; the rest can be switched on in Settings.
-- **Update notices.** Ledger checks GitHub for a new release on startup and shows it on the About page. It never downloads or installs anything itself.
+## What Ledger adds to YapCap
+
+| | |
+| --- | --- |
+| 🎨 **Redesign** | A flat, minimalist popup, settings and account screens, inspired by Omarchy |
+| ➕ **New providers** | OpenRouter, ElevenLabs and Fish Audio, on top of YapCap's eleven |
+| 📊 **Token charts** | **TOKENS BY DAY** (last seven days) and **TOKENS BY MODEL** for Claude and OpenRouter |
+| 🔑 **Credits by key** | ElevenLabs credits split by API key for the current billing period |
+| ⭕ **Credit rings** | An ElevenLabs or Fish Audio credit gauge in every other provider's header; click it to swap between the two |
+| 🔒 **Hardening** | Credential files written atomically, a separate OAuth `state` for Claude sign-in, current TLS libraries, and clearer API-key errors |
+| 🔄 **Sync** | Every setting change reaches every running Ledger process |
+
+Full history: [CHANGELOG.md](CHANGELOG.md).
 
 ## Providers
 
 | Provider | Sign in with | Shows |
 | --- | --- | --- |
-| Antigravity | Google (browser) | Model-group quota (5-hour and weekly) |
-| Claude | Claude (browser, paste the code back) | Session and weekly limits; tokens by day and model from Claude Code |
-| Codex | OpenAI (browser), or import from OpenCode | 5-hour and weekly limits |
-| Copilot | GitHub device login, or import from OpenCode | Chat/completions (Free) or premium requests (paid) |
-| Cursor | Scans the Cursor IDE's local sign-in | Total and API usage |
-| ElevenLabs | API key | Monthly credit usage and reset, credits by API key; optional credits ring on every other provider |
-| Fish Audio | API key | **API credit**: the pay-as-you-go balance that audio API calls spend, as dollars left of what you have topped up. Not Plus-plan or subscription credits; optional credits ring, which a click swaps with the ElevenLabs ring when both are on |
-| Gemini | Google (browser) — enable manually | Pro, Flash and Lite quota |
-| Grok | xAI (browser), or import from the Grok CLI | Weekly credit usage |
+| Antigravity | Google (browser) | 5-hour and weekly model-group quota |
+| Claude | Claude (browser) | Session and weekly limits, tokens by day and model |
+| Codex | OpenAI (browser) or OpenCode import | 5-hour and weekly limits |
+| Copilot | GitHub device login or OpenCode import | Chat and completions, or premium requests |
+| Cursor | The Cursor IDE's local sign-in | Total and API usage |
+| ElevenLabs | API key | Monthly credits, reset time, credits by key |
+| Fish Audio | API key | API credit left of what you have topped up |
+| Gemini | Google (browser), enable manually | Pro, Flash and Lite quota |
+| Grok | xAI (browser) or Grok CLI import | Weekly credit usage |
 | Kimi | API key | Weekly and rate-limit windows |
 | Minimax | API key | 5-hour and weekly windows |
 | OpenCode Go | API key | 5-hour and weekly windows |
-| OpenRouter | API key | Daily and weekly spend, credit balance, tokens by day and model |
+| OpenRouter | API key | Daily and weekly spend, balance, tokens by day and model |
 | Z.AI Coding Plan | API key | 5-hour and weekly windows |
 
-API-key forms for Kimi, Minimax, OpenCode Go and Z.AI can be prefilled from OpenCode's `~/.local/share/opencode/auth.json`. Ledger only reads that file when you add an account, and never writes to it.
+<details>
+<summary><b>See every provider page</b></summary>
+<br>
+<p align="center">
+<img src="resources/screenshots/provider-antigravity.png" alt="Antigravity" width="260" align="top">
+<img src="resources/screenshots/provider-claude.png" alt="Claude" width="260" align="top">
+<img src="resources/screenshots/provider-codex.png" alt="Codex" width="260" align="top">
+<img src="resources/screenshots/provider-copilot.png" alt="Copilot" width="260" align="top">
+<img src="resources/screenshots/provider-cursor.png" alt="Cursor" width="260" align="top">
+<img src="resources/screenshots/provider-elevenlabs.png" alt="ElevenLabs" width="260" align="top">
+<img src="resources/screenshots/provider-fish.png" alt="Fish Audio" width="260" align="top">
+<img src="resources/screenshots/provider-gemini.png" alt="Gemini" width="260" align="top">
+<img src="resources/screenshots/provider-grok.png" alt="Grok" width="260" align="top">
+<img src="resources/screenshots/provider-kimi.png" alt="Kimi" width="260" align="top">
+<img src="resources/screenshots/provider-minimax.png" alt="Minimax" width="260" align="top">
+<img src="resources/screenshots/provider-open-code-go.png" alt="OpenCode Go" width="260" align="top">
+<img src="resources/screenshots/provider-open-router.png" alt="OpenRouter" width="260" align="top">
+<img src="resources/screenshots/provider-zai.png" alt="Z.AI Coding Plan" width="260" align="top">
+</p>
+</details>
 
-**OpenRouter:** use a management key to see spend across all of your keys and today's token usage. A regular API key only reports its own spend, and token history stops at yesterday.
+**Provider notes**
+
+- **Fish Audio** reads your pay-as-you-go **API credit**, the balance that audio API calls spend. Plus-plan credits only work on the Fish Audio website, so Ledger doesn't show them.
+
+- **OpenRouter** shows spend across all your keys and today's tokens with a management key. A regular key only reports its own spend, and its token history stops at yesterday.
+
+- **Kimi, Minimax, OpenCode Go and Z.AI** forms can be prefilled from OpenCode's `~/.local/share/opencode/auth.json`. Ledger reads that file only when you add an account and never writes to it.
+
+## Credit rings
+
+Turn on **ElevenLabs Credits Ring** or **Fish Credits Ring** under **Settings → PREFERENCES → OPTIONAL**, and that service's credit gauge appears in the header of every other provider. Hover it for the exact balance. With both rings on, the header shows one at a time: click the ring to switch services, and Ledger remembers your choice.
+
+<p align="center">
+<img src="resources/screenshots/ring-elevenlabs.png" alt="Header with the ElevenLabs credits ring" width="300" align="top">
+<img src="resources/screenshots/ring-fish.png" alt="Header with the Fish Audio credits ring" width="300" align="top">
+</p>
 
 ## Install
 
 ### From a release
 
-Download a package from the [latest release](https://github.com/chefn3ff/cosmic-applet-ledger/releases/latest).
+Download a package from the [latest release](https://github.com/chefn3ff/cosmic-applet-ledger/releases/latest):
 
 ```bash
 # Debian, Ubuntu, Pop!_OS
@@ -68,7 +111,7 @@ sudo apt install ./cosmic-applet-ledger_*_amd64.deb
 sudo rpm -i ./cosmic-applet-ledger-*.x86_64.rpm
 ```
 
-A `.tar.gz` with the prebuilt binary and resources is also attached to each release.
+Each release also has a `.tar.gz` with the prebuilt binary, and a `checksums.txt`.
 
 ### From source
 
@@ -89,78 +132,70 @@ cd cosmic-applet-ledger
 just install
 ```
 
-Remove it again with `just uninstall`.
+To update, pull and run `just install` again, then `pkill -x cosmic-applet-ledger` so the panel restarts it. Remove Ledger with `just uninstall`.
 
 ## Getting started
 
-1. If you installed a package, add Ledger to the panel: **COSMIC Settings → Desktop → Panel → Configure panel applets**, then add **Ledger**.
-2. Click the panel icon to open Ledger. Providers detected on your machine already have a tab.
+1. If you installed a package, add Ledger to the panel: **COSMIC Settings → Desktop → Panel → Configure panel applets → Ledger**.
 
-   <img src="resources/screenshots/screenshot-panel.png" alt="Ledger's icon in the COSMIC panel" width="560">
+2. Click the panel icon. Providers Ledger detected on your machine already have a page.
 
-3. Open **Settings** (the gear icon). Under **PROVIDERS**, switch on any provider you want that wasn't detected.
+   <img src="resources/screenshots/screenshot-panel.png" alt="Ledger's icon in the COSMIC panel" width="420">
 
-   <img src="resources/screenshots/screenshot-settings.png" alt="Settings: providers, preferences and about" width="320">
+3. Open **Settings** (the gear). Under **PROVIDERS**, switch on anything that wasn't detected, and click a provider's name to add an account.
 
-4. Click a provider's name to open its account page and add an account.
+   <img src="resources/screenshots/settings.png" alt="Settings: providers, preferences and about" width="240" align="top">
+   <img src="resources/screenshots/accounts.png" alt="Claude account settings" width="240" align="top">
 
-   <img src="resources/screenshots/screenshot-accounts.png" alt="Claude account settings" width="320">
+4. Use **⇄** to jump to another provider, and the refresh button to update right away.
 
-Once an account is connected, the provider's tab shows its limits and usage. Use the `…` button to switch providers and the refresh button to update right away.
-
-<table>
-  <tr>
-    <th width="33%">Claude</th>
-    <th width="33%">OpenRouter</th>
-    <th width="33%">Codex</th>
-  </tr>
-  <tr>
-    <td valign="top"><img src="resources/screenshots/screenshot-claude.png" alt="Claude: limits, tokens by day and tokens by model" width="100%"></td>
-    <td valign="top"><img src="resources/screenshots/screenshot-openrouter.png" alt="OpenRouter: daily and weekly spend with token charts" width="100%"></td>
-    <td valign="top"><img src="resources/screenshots/screenshot-codex.png" alt="Codex: session and weekly limits" width="100%"></td>
-  </tr>
-</table>
-
-<sub>Screenshots use demo data from <code>just run-demo</code>.</sub>
+   <img src="resources/screenshots/switch-provider.png" alt="Switch Provider list" width="240">
 
 ### Settings
 
-- **Panel Status Bars** — show usage bars in the panel, or just the Ledger icon.
-- **Refresh Interval** — how often Ledger polls provider APIs: 1, 5 (default), 15 or 30 minutes.
-- **Providers** — turn providers on or off and manage their accounts.
+- **Refresh Interval**: how often Ledger checks provider APIs, every 1, 5 (default), 15 or 30 minutes.
+
+- **Panel Status Bars**: usage bars in the panel, or just the Ledger icon.
+
+- **OPTIONAL**: the ElevenLabs and Fish credit rings. Each row appears once its provider is on.
 
 ## Where your data lives
 
-| Path | Contents |
-| --- | --- |
-| `~/.config/cosmic/io.github.mrn3ff.cosmic-applet-ledger/` | Settings, enabled providers and account list |
-| `~/.local/state/cosmic-applet-ledger/<provider>-accounts/` | Ledger's copy of each account's credentials |
-| `~/.local/state/cosmic-applet-ledger/logs/ledger.log.YYYY-MM-DD` | Daily logs |
+- **Settings, enabled providers and the account list:**
+  `~/.config/cosmic/io.github.mrn3ff.cosmic-applet-ledger/`
 
-Credentials are stored as files readable only by you (`0600`, in `0700` folders), not in a system keyring. Removing an account in Ledger deletes only Ledger's copy; your provider account and other tools' sign-ins are untouched.
+- **Ledger's copy of each account's credentials:**
+  `~/.local/state/cosmic-applet-ledger/<provider>-accounts/`
 
-Ledger also reads, but never changes:
+- **Daily logs:**
+  `~/.local/state/cosmic-applet-ledger/logs/`
 
-- `~/.claude/projects/` — Claude Code session logs, for Claude's token charts
-- `~/.grok/auth.json` — only when you choose to import from the Grok CLI
-- `~/.local/share/opencode/auth.json` — only to prefill account forms
-- The Cursor IDE's local sign-in, when you scan for Cursor accounts
+Credentials are files only you can read (`0600`, in `0700` folders), written atomically so a crash can't leave a half-written token. Ledger doesn't use a system keyring. Removing an account deletes only Ledger's copy; the provider account and other tools' sign-ins are untouched.
+
+Ledger also reads, and never changes:
+
+- `~/.claude/projects/`: Claude Code session logs, for Claude's token charts.
+
+- `~/.grok/auth.json`: only when you import from the Grok CLI.
+
+- `~/.local/share/opencode/auth.json`: only to prefill account forms.
+
+- The Cursor IDE's local sign-in, when you scan for Cursor accounts.
 
 Logs never contain credentials or tokens. If you find one that does, please [open an issue](https://github.com/chefn3ff/cosmic-applet-ledger/issues).
 
 ## Development
 
 ```bash
-just run-demo         # standalone window with demo accounts for every provider
-cargo test            # unit tests
+just run-demo      # standalone window with demo accounts for every provider
+just screenshots   # regenerate the README screenshots from demo data
+cargo test         # unit tests
 ```
 
-CI runs `cargo fmt --check`, `cargo clippy -- -D warnings` and `cargo test` on every push; run them before opening a pull request. Pushing a `v*` tag builds the `.deb`, `.rpm` and tarball and publishes a GitHub release.
-
-See [CHANGELOG.md](CHANGELOG.md) for release history.
+Demo mode (`LEDGER_DEMO=1`) uses made-up accounts and numbers, and never calls a provider API or checks for updates. CI runs `cargo fmt --check`, `cargo clippy -- -D warnings` and `cargo test` on every push; please run them before opening a pull request. Pushing a `v*` tag builds the `.deb`, `.rpm` and tarball and publishes a GitHub release.
 
 ## License
 
-Licensed under the Mozilla Public License 2.0 — see [LICENSE](LICENSE).
+Mozilla Public License 2.0, see [LICENSE](LICENSE).
 
-*Original codebase and provider engine: YapCap © Topi Csarno.*
+*Original codebase and provider engine: [YapCap](https://github.com/TopiCsarno/yapcap) © Topi Csarno.*

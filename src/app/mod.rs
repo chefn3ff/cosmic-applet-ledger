@@ -313,10 +313,13 @@ impl cosmic::Application for AppModel {
             selected_provider,
             detail_account_page: 0,
             provider_viewport_offset: 0,
-            popup_route: if applet::debug_popup_starts_on_settings() {
-                PopupRoute::Settings
-            } else {
-                PopupRoute::ProviderDetail
+            popup_route: match applet::debug_popup_page() {
+                Some(applet::DebugPopupPage::Settings) => PopupRoute::Settings,
+                Some(applet::DebugPopupPage::SwitchProvider) => PopupRoute::SwitchProvider,
+                Some(applet::DebugPopupPage::Accounts) => {
+                    PopupRoute::ManageAccounts(selected_provider)
+                }
+                Some(applet::DebugPopupPage::Detail) | None => PopupRoute::ProviderDetail,
             },
             update_status: UpdateStatus::Unchecked,
             launch_mode,

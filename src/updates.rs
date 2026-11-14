@@ -27,6 +27,11 @@ pub async fn check(client: &reqwest::Client) -> UpdateStatus {
     if let Ok(value) = std::env::var(DEBUG_UPDATE_AVAILABLE_ENV) {
         return debug_update_available_status(&value);
     }
+    // Demo mode uses made-up data only and makes no network calls, so
+    // repeated demo runs (`just screenshots`) never hit GitHub's rate limit.
+    if crate::demo_env::is_active() {
+        return UpdateStatus::NoUpdate;
+    }
 
     match fetch_release(client, DEFAULT_URL).await {
         Ok(release) => {

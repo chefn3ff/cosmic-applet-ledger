@@ -5,6 +5,20 @@ All notable changes to Ledger are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- README rewritten: what Ledger adds to YapCap, a gallery of every provider
+  page, a credit rings section, and a layout that reads well on a phone. All
+  screenshots retaken from demo data.
+- Demo mode no longer checks GitHub for updates, and its Fish Audio figures
+  are made up.
+
+### Added
+- `just screenshots` regenerates every README screenshot from demo data.
+- Debug builds: `LEDGER_DEBUG_POPUP_WINDOW` also accepts `switch` and
+  `accounts`.
+
 ## [0.4.0] - 2026-11-14
 
 ### Added

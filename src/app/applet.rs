@@ -43,26 +43,35 @@ impl AppletBarLayout {
     }
 }
 
-/// Debug builds only: `LEDGER_DEBUG_POPUP_WINDOW=1` makes a standalone run
+/// Which page the debug popup window opens on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum DebugPopupPage {
+    Detail,
+    Settings,
+    SwitchProvider,
+    Accounts,
+}
+
+/// Debug builds only: `LEDGER_DEBUG_POPUP_WINDOW` makes a standalone run
 /// show the popup itself in a normal window instead of the panel button, so
-/// the popup can be seen and screenshotted without a panel or a click.
-/// `LEDGER_DEBUG_POPUP_WINDOW=settings` opens it on the Settings page.
-pub(crate) fn debug_popup_window() -> bool {
-    debug_popup_window_value().is_some()
-}
-
-pub(crate) fn debug_popup_starts_on_settings() -> bool {
-    debug_popup_window_value().as_deref() == Some("settings")
-}
-
-fn debug_popup_window_value() -> Option<String> {
+/// every page can be seen and screenshotted without a panel or a click
+/// (`just screenshots` uses it). Values: `1` (provider page), `settings`,
+/// `switch`, `accounts` (the selected provider's accounts page).
+pub(crate) fn debug_popup_page() -> Option<DebugPopupPage> {
     if !cfg!(debug_assertions) {
         return None;
     }
-    std::env::var("LEDGER_DEBUG_POPUP_WINDOW")
-        .ok()
-        .map(|value| value.trim().to_string())
-        .filter(|value| value == "1" || value == "settings")
+    match std::env::var("LEDGER_DEBUG_POPUP_WINDOW").ok()?.trim() {
+        "1" => Some(DebugPopupPage::Detail),
+        "settings" => Some(DebugPopupPage::Settings),
+        "switch" => Some(DebugPopupPage::SwitchProvider),
+        "accounts" => Some(DebugPopupPage::Accounts),
+        _ => None,
+    }
+}
+
+pub(crate) fn debug_popup_window() -> bool {
+    debug_popup_page().is_some()
 }
 
 pub(crate) fn applet_settings() -> cosmic::app::Settings {

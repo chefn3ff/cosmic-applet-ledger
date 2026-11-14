@@ -84,6 +84,10 @@ run-demo-update *args:
 run-demo-update-debug *args:
     env LEDGER_DEMO=1 LEDGER_DEBUG_UPDATE_AVAILABLE=1 RUST_LOG='warn,ledger::app=info,ledger::app::popup_diagnostics=debug' RUST_BACKTRACE=full cargo run {{args}}
 
+# Regenerates the README screenshots from demo data (needs a COSMIC session and ImageMagick)
+screenshots *args:
+    scripts/screenshots.sh {{args}}
+
 # Runs with empty HOME/XDG dirs so provider discovery finds nothing
 run-empty-discovery *args:
     rm -rf /tmp/ledger-empty-home /tmp/ledger-empty-config /tmp/ledger-empty-state
