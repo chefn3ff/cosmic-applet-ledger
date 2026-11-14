@@ -45,7 +45,7 @@ pub(super) fn selected_provider_view<'a>(
         .and_then(|a| a.snapshot.as_ref())
         .and_then(|s| s.identity.plan.as_deref());
 
-    let ring = elevenlabs_ring(provider.provider, state, config);
+    let ring = credit_ring(provider.provider, state, config);
     let summary = provider_summary(provider, detected_without_accounts, plan, ring);
 
     let body = account_body_items(active_account, provider, state, config, detection);
@@ -365,39 +365,97 @@ fn reset_text(reset: chrono::DateTime<chrono::Utc>, now: chrono::DateTime<chrono
     }
 }
 
-/// The ElevenLabs credits ring for every other provider's header, when the
-/// ring is switched on, ElevenLabs is enabled and has a snapshot.
-fn elevenlabs_ring(
+/// Services that can draw a credit ring in other providers' headers.
+const RING_PROVIDERS: [ProviderId; 2] = [ProviderId::ElevenLabs, ProviderId::Fish];
+
+/// The ring service a click switches to.
+pub(in crate::app) fn other_ring_provider(current: ProviderId) -> ProviderId {
+    if current == ProviderId::Fish {
+        ProviderId::ElevenLabs
+    } else {
+        ProviderId::Fish
+    }
+}
+
+fn ring_switched_on(config: &Config, ring_provider: ProviderId) -> bool {
+    match ring_provider {
+        ProviderId::ElevenLabs => config.elevenlabs_ring_enabled,
+        ProviderId::Fish => config.fish_ring_enabled,
+        _ => false,
+    }
+}
+
+/// Ring services that can show on `provider`'s header right now: switched on
+/// in settings, provider enabled, a snapshot to draw, and not the provider's
+/// own page.
+fn showable_rings(provider: ProviderId, state: &AppState, config: &Config) -> Vec<ProviderId> {
+    RING_PROVIDERS
+        .into_iter()
+        .filter(|ring| *ring != provider && ring_switched_on(config, *ring))
+        .filter(|ring| state.provider(*ring).is_some_and(|entry| entry.enabled))
+        .filter(|ring| {
+            state
+                .accounts_for(*ring)
+                .into_iter()
+                .any(|account| account.snapshot.is_some())
+        })
+        .collect()
+}
+
+/// The credit ring for every other provider's header. With one ring on it
+/// shows that one; with both on it shows the saved choice and a click swaps
+/// to the other service.
+fn credit_ring(
     provider: ProviderId,
     state: &AppState,
     config: &Config,
 ) -> Option<Element<'static, Message>> {
-    let elevenlabs_enabled = state
-        .provider(ProviderId::ElevenLabs)
-        .is_some_and(|elevenlabs| elevenlabs.enabled);
-    if provider == ProviderId::ElevenLabs || !config.elevenlabs_ring_enabled || !elevenlabs_enabled
-    {
-        return None;
-    }
+    let showable = showable_rings(provider, state, config);
+    let shown = showable
+        .iter()
+        .copied()
+        .find(|ring| *ring == config.header_ring_provider)
+        .or_else(|| showable.first().copied())?;
+    let switchable = showable.len() > 1;
+
     let snapshot = state
-        .accounts_for(ProviderId::ElevenLabs)
+        .accounts_for(shown)
         .into_iter()
         .find_map(|account| account.snapshot.as_ref())?;
     let window = snapshot.windows.first()?;
     let pct = window.used_percent.clamp(0.0, 100.0);
 
-    let mut tooltip = format!("ElevenLabs: {}", window_value_label(snapshot, window));
-    if snapshot.provider_cost.is_some() {
+    let mut tooltip = format!(
+        "{}: {}",
+        shown.label(),
+        window_value_label(snapshot, window)
+    );
+    if shown == ProviderId::ElevenLabs && snapshot.provider_cost.is_some() {
         tooltip.push_str(" credits");
     }
     if let Some(reset) = window.reset_at {
         tooltip.push_str(" · ");
         tooltip.push_str(&reset_text(reset, chrono::Utc::now()));
     }
+    if switchable {
+        tooltip.push_str(" · click for ");
+        tooltip.push_str(other_ring_provider(shown).label());
+    }
 
-    let ring = widget::Svg::new(widget::svg::Handle::from_memory(credit_ring_svg(pct)))
-        .width(Length::Fixed(super::CREDIT_RING_SIZE))
-        .height(Length::Fixed(super::CREDIT_RING_SIZE));
+    let ring = widget::Svg::new(widget::svg::Handle::from_memory(credit_ring_svg(
+        pct, shown,
+    )))
+    .width(Length::Fixed(super::CREDIT_RING_SIZE))
+    .height(Length::Fixed(super::CREDIT_RING_SIZE));
+    let ring: Element<'static, Message> = if switchable {
+        widget::button::custom(ring)
+            .padding(0)
+            .class(cosmic::theme::Button::Text)
+            .on_press(Message::SwitchHeaderRing)
+            .into()
+    } else {
+        ring.into()
+    };
     let ring = super::overhang::overhang(
         ring,
         cosmic::iced::Size::new(super::CREDIT_RING_FOOTPRINT, super::CREDIT_RING_FOOTPRINT),
@@ -414,8 +472,9 @@ fn elevenlabs_ring(
 }
 
 /// A 32×32 gauge: faint track, an arc for the share used (clockwise from the
-/// top), and the ElevenLabs two-bar mark in the middle.
-fn credit_ring_svg(used_percent: f32) -> Vec<u8> {
+/// top), and the service's mark in the middle (ElevenLabs' two bars, or a
+/// fish for Fish Audio).
+fn credit_ring_svg(used_percent: f32, ring_provider: ProviderId) -> Vec<u8> {
     const RADIUS: f32 = 13.5;
     let circumference = 2.0 * std::f32::consts::PI * RADIUS;
     let arc_length = circumference * used_percent.clamp(0.0, 100.0) / 100.0;
@@ -426,8 +485,13 @@ fn credit_ring_svg(used_percent: f32) -> Vec<u8> {
     } else {
         String::new()
     };
+    let mark = if ring_provider == ProviderId::Fish {
+        r##"<path transform="translate(9 9) scale(0.5833)" fill="#ffffff" fill-rule="evenodd" d="M2 12C5 6.5 9.5 5 13 5.5C15.5 5.9 17.5 7.6 19 9.8L22.5 6.5V17.5L19 14.2C17.5 16.4 15.5 18.1 13 18.5C9.5 19 5 17.5 2 12ZM7 10.2a1.1 1.1 0 1 0 0 2.2a1.1 1.1 0 0 0 0-2.2Z"/>"##
+    } else {
+        r##"<rect x="12.6" y="9.5" width="2.4" height="13" rx="0.8" fill="#ffffff"/><rect x="17" y="9.5" width="2.4" height="13" rx="0.8" fill="#ffffff"/>"##
+    };
     format!(
-        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="{RADIUS}" fill="none" stroke="#ffffff" stroke-opacity="0.14" stroke-width="3"/>{arc}<rect x="12.6" y="9.5" width="2.4" height="13" rx="0.8" fill="#ffffff"/><rect x="17" y="9.5" width="2.4" height="13" rx="0.8" fill="#ffffff"/></svg>"##
+        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="{RADIUS}" fill="none" stroke="#ffffff" stroke-opacity="0.14" stroke-width="3"/>{arc}{mark}</svg>"##
     )
     .into_bytes()
 }
@@ -435,7 +499,8 @@ fn credit_ring_svg(used_percent: f32) -> Vec<u8> {
 /// Right-hand value for a limits row. Spend-based providers put a formatted
 /// amount in `reset_description`; everyone else uses it for reset metadata
 /// (often an RFC3339 timestamp), so they get the percentage. ElevenLabs shows
-/// raw credits ("8,200 / 30,000") from `provider_cost`.
+/// raw credits ("8,200 / 30,000") from `provider_cost`; Fish Audio shows the
+/// dollars left of its top-ups ("$48.93 left of $50.00").
 fn window_value_label(snapshot: &UsageSnapshot, window: &UsageWindow) -> String {
     if snapshot.provider == ProviderId::OpenRouter
         && let Some(amount) = &window.reset_description
@@ -452,17 +517,39 @@ fn window_value_label(snapshot: &UsageSnapshot, window: &UsageWindow) -> String 
     {
         return format!("{} / {}", group_thousands(*used), group_thousands(*limit));
     }
+    if snapshot.provider == ProviderId::Fish
+        && let Some(ProviderCost {
+            used,
+            limit: Some(limit),
+            ..
+        }) = &snapshot.provider_cost
+        && *limit > 0.0
+    {
+        return format!(
+            "${} left of ${}",
+            group_money((*limit - *used).max(0.0)),
+            group_money(*limit)
+        );
+    }
     format!("{:.0}%", window.used_percent.clamp(0.0, 100.0))
 }
 
-/// ElevenLabs has a single credits window, so the row carries its own label
-/// instead of the generic "Session".
+/// ElevenLabs and Fish Audio each have a single credit window, so the row
+/// carries its own label instead of the generic "Session".
 fn session_row_title(provider: ProviderId, window: &UsageWindow) -> String {
-    if provider == ProviderId::ElevenLabs {
+    if provider == ProviderId::ElevenLabs || provider == ProviderId::Fish {
         window.label.clone()
     } else {
         "Session".to_string()
     }
+}
+
+/// 48.934 -> "48.93", 1234.5 -> "1,234.50". Two decimals, thousands grouped.
+fn group_money(value: f64) -> String {
+    let cents = (value.max(0.0) * 100.0).round();
+    let whole = (cents / 100.0).trunc();
+    let fraction = cents - whole * 100.0;
+    format!("{}.{:02}", group_thousands(whole), fraction as u64)
 }
 
 /// 8200.0 -> "8,200".
@@ -1775,30 +1862,94 @@ mod tests {
     fn elevenlabs_ring_shows_on_every_other_provider_when_on() {
         let mut state = state_with_elevenlabs_snapshot();
         let mut config = Config::default();
-        assert!(elevenlabs_ring(ProviderId::Claude, &state, &config).is_none());
+        assert!(credit_ring(ProviderId::Claude, &state, &config).is_none());
 
         config.elevenlabs_ring_enabled = true;
-        assert!(elevenlabs_ring(ProviderId::Claude, &state, &config).is_some());
-        assert!(elevenlabs_ring(ProviderId::Codex, &state, &config).is_some());
-        assert!(elevenlabs_ring(ProviderId::ElevenLabs, &state, &config).is_none());
+        assert!(credit_ring(ProviderId::Claude, &state, &config).is_some());
+        assert!(credit_ring(ProviderId::Codex, &state, &config).is_some());
+        assert!(credit_ring(ProviderId::ElevenLabs, &state, &config).is_none());
 
         state.upsert_provider(ProviderRuntimeState {
             enabled: false,
             ..ProviderRuntimeState::empty(ProviderId::ElevenLabs)
         });
-        assert!(elevenlabs_ring(ProviderId::Claude, &state, &config).is_none());
+        assert!(credit_ring(ProviderId::Claude, &state, &config).is_none());
+    }
+
+    fn state_with_both_ring_snapshots() -> AppState {
+        let mut state = state_with_elevenlabs_snapshot();
+        let mut fish = ProviderAccountRuntimeState::empty(ProviderId::Fish, "fish-1", "Fish");
+        fish.snapshot = Some(
+            crate::providers::fish::quota::parse(
+                r#"{"_id":"x","user_id":"x","credit":"48.93468","cumulative_top_up":"50","created_at":"2026-10-28T02:49:27.106000Z","updated_at":"2026-11-14T21:46:51.007000Z","has_phone_sha256":false,"has_free_credit":null}"#,
+                chrono::Utc::now(),
+            )
+            .expect("parses"),
+        );
+        state.upsert_provider(ProviderRuntimeState::empty(ProviderId::Fish));
+        state.provider_accounts.push(fish);
+        state
+    }
+
+    #[test]
+    fn fish_ring_shows_alone_and_is_not_switchable() {
+        let state = state_with_both_ring_snapshots();
+        let config = Config {
+            fish_ring_enabled: true,
+            ..Config::default()
+        };
+        assert_eq!(
+            showable_rings(ProviderId::Claude, &state, &config),
+            [ProviderId::Fish]
+        );
+        assert!(credit_ring(ProviderId::Claude, &state, &config).is_some());
+        assert!(showable_rings(ProviderId::Fish, &state, &config).is_empty());
+    }
+
+    #[test]
+    fn both_rings_on_show_the_saved_choice_and_switch_to_the_other() {
+        let state = state_with_both_ring_snapshots();
+        let config = Config {
+            elevenlabs_ring_enabled: true,
+            fish_ring_enabled: true,
+            ..Config::default()
+        };
+        let showable = showable_rings(ProviderId::Claude, &state, &config);
+        assert_eq!(showable, [ProviderId::ElevenLabs, ProviderId::Fish]);
+        assert_eq!(config.header_ring_provider, ProviderId::ElevenLabs);
+        assert_eq!(
+            other_ring_provider(ProviderId::ElevenLabs),
+            ProviderId::Fish
+        );
+        assert_eq!(
+            other_ring_provider(ProviderId::Fish),
+            ProviderId::ElevenLabs
+        );
+        // On a ring service's own page only the other ring can show.
+        assert_eq!(
+            showable_rings(ProviderId::ElevenLabs, &state, &config),
+            [ProviderId::Fish]
+        );
+    }
+
+    #[test]
+    fn fish_ring_glyph_differs_from_elevenlabs() {
+        let fish = String::from_utf8(credit_ring_svg(2.0, ProviderId::Fish)).expect("utf8");
+        let eleven = String::from_utf8(credit_ring_svg(2.0, ProviderId::ElevenLabs)).expect("utf8");
+        assert!(fish.contains("<path") && !fish.contains("<rect"));
+        assert!(eleven.contains("<rect"));
     }
 
     #[test]
     fn credit_ring_arc_tracks_used_share() {
-        let empty = String::from_utf8(credit_ring_svg(0.0)).expect("utf8");
+        let empty = String::from_utf8(credit_ring_svg(0.0, ProviderId::ElevenLabs)).expect("utf8");
         assert!(!empty.contains("stroke-dasharray"));
 
-        let half = String::from_utf8(credit_ring_svg(50.0)).expect("utf8");
+        let half = String::from_utf8(credit_ring_svg(50.0, ProviderId::ElevenLabs)).expect("utf8");
         // Half of 2π·13.5 ≈ 84.82.
         assert!(half.contains(r#"stroke-dasharray="42.41 84.82""#));
 
-        let over = String::from_utf8(credit_ring_svg(140.0)).expect("utf8");
+        let over = String::from_utf8(credit_ring_svg(140.0, ProviderId::ElevenLabs)).expect("utf8");
         assert!(over.contains(r#"stroke-dasharray="84.82 84.82""#));
     }
 
@@ -1815,6 +1966,24 @@ mod tests {
         assert_eq!(session_row_title(ProviderId::Codex, window), "Session");
         assert_eq!(group_thousands(999.0), "999");
         assert_eq!(group_thousands(1_234_567.0), "1,234,567");
+    }
+
+    #[test]
+    fn fish_credit_row_shows_dollars_left_of_top_ups() {
+        let snapshot = crate::providers::fish::quota::parse(
+            r#"{"credit":"48.93468","cumulative_top_up":"50"}"#,
+            chrono::Utc::now(),
+        )
+        .expect("parses");
+        let window = &snapshot.windows[0];
+        assert_eq!(
+            window_value_label(&snapshot, window),
+            "$48.93 left of $50.00"
+        );
+        assert_eq!(session_row_title(ProviderId::Fish, window), "API credit");
+        assert_eq!(group_money(1_234.5), "1,234.50");
+        assert_eq!(group_money(0.0), "0.00");
+        assert_eq!(group_money(1_234_567.891), "1,234,567.89");
     }
 
     fn limit_window(label: &str, window_seconds: Option<i64>) -> UsageWindow {

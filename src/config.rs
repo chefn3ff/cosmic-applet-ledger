@@ -50,6 +50,8 @@ pub struct Config {
     pub openrouter_enablement: ProviderEnablement,
     #[serde(default)]
     pub elevenlabs_enablement: ProviderEnablement,
+    #[serde(default)]
+    pub fish_enablement: ProviderEnablement,
     pub selected_codex_account_ids: Vec<String>,
     pub codex_managed_accounts: Vec<ManagedCodexAccountConfig>,
     pub selected_claude_account_ids: Vec<String>,
@@ -96,9 +98,20 @@ pub struct Config {
     pub openrouter_managed_accounts: Vec<ManagedOpenRouterAccountConfig>,
     #[serde(default)]
     pub elevenlabs_managed_accounts: Vec<ManagedElevenLabsAccountConfig>,
+    #[serde(default)]
+    pub selected_fish_account_ids: Vec<String>,
+    #[serde(default)]
+    pub fish_managed_accounts: Vec<ManagedFishAccountConfig>,
     /// Shows the ElevenLabs credits ring in every other provider's header.
     #[serde(default)]
     pub elevenlabs_ring_enabled: bool,
+    /// Shows the Fish Audio API credit ring in every other provider's header.
+    #[serde(default)]
+    pub fish_ring_enabled: bool,
+    /// Which credit ring the header shows when both rings are on. Clicking
+    /// the ring switches it to the other service.
+    #[serde(default = "default_header_ring_provider")]
+    pub header_ring_provider: ProviderId,
     pub log_level: String,
 }
 
@@ -124,6 +137,7 @@ impl Default for Config {
             grok_enablement: ProviderEnablement::Auto,
             openrouter_enablement: ProviderEnablement::Auto,
             elevenlabs_enablement: ProviderEnablement::Auto,
+            fish_enablement: ProviderEnablement::Auto,
             selected_codex_account_ids: Vec::new(),
             codex_managed_accounts: Vec::new(),
             selected_claude_account_ids: Vec::new(),
@@ -150,7 +164,11 @@ impl Default for Config {
             selected_elevenlabs_account_ids: Vec::new(),
             openrouter_managed_accounts: Vec::new(),
             elevenlabs_managed_accounts: Vec::new(),
+            selected_fish_account_ids: Vec::new(),
+            fish_managed_accounts: Vec::new(),
             elevenlabs_ring_enabled: false,
+            fish_ring_enabled: false,
+            header_ring_provider: default_header_ring_provider(),
             log_level: "info".to_string(),
         }
     }
@@ -158,6 +176,10 @@ impl Default for Config {
 
 fn default_provider_visibility_mode() -> ProviderVisibilityMode {
     ProviderVisibilityMode::UserManaged
+}
+
+fn default_header_ring_provider() -> ProviderId {
+    ProviderId::ElevenLabs
 }
 
 fn default_selected_provider() -> ProviderId {
@@ -184,6 +206,7 @@ impl Config {
             ProviderId::OpenCodeGo => self.opencode_go_enablement,
             ProviderId::OpenRouter => self.openrouter_enablement,
             ProviderId::ElevenLabs => self.elevenlabs_enablement,
+            ProviderId::Fish => self.fish_enablement,
             ProviderId::Zai => self.zai_enablement,
         }
     }
@@ -203,6 +226,7 @@ impl Config {
             ProviderId::OpenCodeGo => &self.selected_opencode_go_account_ids,
             ProviderId::OpenRouter => &self.selected_openrouter_account_ids,
             ProviderId::ElevenLabs => &self.selected_elevenlabs_account_ids,
+            ProviderId::Fish => &self.selected_fish_account_ids,
             ProviderId::Zai => &self.selected_zai_account_ids,
         }
     }
@@ -221,6 +245,7 @@ impl Config {
             ProviderId::OpenCodeGo => &mut self.selected_opencode_go_account_ids,
             ProviderId::OpenRouter => &mut self.selected_openrouter_account_ids,
             ProviderId::ElevenLabs => &mut self.selected_elevenlabs_account_ids,
+            ProviderId::Fish => &mut self.selected_fish_account_ids,
             ProviderId::Zai => &mut self.selected_zai_account_ids,
         }
     }
@@ -278,6 +303,7 @@ fn provider_enabled_key(provider: ProviderId) -> &'static str {
         ProviderId::OpenCodeGo => "opencode_go_enabled",
         ProviderId::OpenRouter => "openrouter_enabled",
         ProviderId::ElevenLabs => "elevenlabs_enabled",
+        ProviderId::Fish => "fish_enabled",
         ProviderId::Zai => "zai_enabled",
     }
 }
@@ -296,6 +322,7 @@ fn provider_enablement_key(provider: ProviderId) -> &'static str {
         ProviderId::OpenCodeGo => "opencode_go_enablement",
         ProviderId::OpenRouter => "openrouter_enablement",
         ProviderId::ElevenLabs => "elevenlabs_enablement",
+        ProviderId::Fish => "fish_enablement",
         ProviderId::Zai => "zai_enablement",
     }
 }
@@ -314,6 +341,7 @@ fn provider_enablement_mut(config: &mut Config, provider: ProviderId) -> &mut Pr
         ProviderId::OpenCodeGo => &mut config.opencode_go_enablement,
         ProviderId::OpenRouter => &mut config.openrouter_enablement,
         ProviderId::ElevenLabs => &mut config.elevenlabs_enablement,
+        ProviderId::Fish => &mut config.fish_enablement,
         ProviderId::Zai => &mut config.zai_enablement,
     }
 }
@@ -507,6 +535,16 @@ pub struct ManagedElevenLabsAccountConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ManagedFishAccountConfig {
+    pub id: String,
+    pub label: String,
+    pub api_key_source: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub last_authenticated_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ManagedGrokAccountConfig {
     pub id: String,
     pub label: String,
@@ -554,6 +592,7 @@ pub struct AppPaths {
     pub grok_accounts_dir: PathBuf,
     pub openrouter_accounts_dir: PathBuf,
     pub elevenlabs_accounts_dir: PathBuf,
+    pub fish_accounts_dir: PathBuf,
     pub log_dir: PathBuf,
 }
 
@@ -621,11 +660,16 @@ pub fn write_changed_config_entries(
         grok_managed_accounts,
         openrouter_enablement,
         elevenlabs_enablement,
+        fish_enablement,
         selected_openrouter_account_ids,
         selected_elevenlabs_account_ids,
         openrouter_managed_accounts,
         elevenlabs_managed_accounts,
+        selected_fish_account_ids,
+        fish_managed_accounts,
         elevenlabs_ring_enabled,
+        fish_ring_enabled,
+        header_ring_provider,
         log_level,
     } = new;
 
@@ -656,6 +700,7 @@ pub fn write_changed_config_entries(
     set_changed!(grok_enablement);
     set_changed!(openrouter_enablement);
     set_changed!(elevenlabs_enablement);
+    set_changed!(fish_enablement);
     set_changed!(selected_codex_account_ids);
     set_changed!(codex_managed_accounts);
     set_changed!(selected_claude_account_ids);
@@ -682,7 +727,11 @@ pub fn write_changed_config_entries(
     set_changed!(selected_elevenlabs_account_ids);
     set_changed!(openrouter_managed_accounts);
     set_changed!(elevenlabs_managed_accounts);
+    set_changed!(selected_fish_account_ids);
+    set_changed!(fish_managed_accounts);
     set_changed!(elevenlabs_ring_enabled);
+    set_changed!(fish_ring_enabled);
+    set_changed!(header_ring_provider);
     set_changed!(log_level);
 
     tx.commit()
@@ -822,6 +871,7 @@ pub fn paths() -> AppPaths {
     let grok_accounts_dir = state_dir.join("grok-accounts");
     let openrouter_accounts_dir = state_dir.join("openrouter-accounts");
     let elevenlabs_accounts_dir = state_dir.join("elevenlabs-accounts");
+    let fish_accounts_dir = state_dir.join("fish-accounts");
     let log_dir = state_dir.join("logs");
     AppPaths {
         cache_dir,
@@ -839,6 +889,7 @@ pub fn paths() -> AppPaths {
         grok_accounts_dir,
         openrouter_accounts_dir,
         elevenlabs_accounts_dir,
+        fish_accounts_dir,
         log_dir,
     }
 }

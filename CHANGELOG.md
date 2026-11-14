@@ -5,6 +5,36 @@ All notable changes to Ledger are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Fish Audio provider (API key). Shows your **API credit**, the pay-as-you-go
+  balance that audio API calls spend, as dollars left of what you have topped
+  up. It does not read Plus-plan or subscription credits. Fish Audio account
+  in demo mode (`LEDGER_DEMO=1`).
+- **Fish Credits Ring** preference, like the ElevenLabs one. With both rings
+  on, the header shows one ring; click it to switch to the other service. The
+  choice is remembered.
+- Debug builds: `LEDGER_DEBUG_POPUP_WINDOW=1` (or `settings`) shows the popup
+  in a normal window, for screenshots without a panel.
+
+### Changed
+- The Switch Provider button is now two stacked opposing arrows.
+- PREFERENCES lists Refresh Interval first, then Panel Status Bars, then an
+  OPTIONAL group with the credit rings.
+- Every changed setting now syncs across Ledger processes by its name, so
+  OpenRouter changes no longer stay in the process that made them.
+
+### Fixed
+- An ElevenLabs key without the User: Read permission now says so, instead of
+  asking you to sign in again. Pasting a key ID (not starting with `sk_`) is
+  refused when you save it.
+- OpenRouter rate limits honour Retry-After, and its API key header is marked
+  sensitive.
+- Credential files are written atomically (temp file, fsync, rename), so a
+  crash right after a token refresh can no longer lose the new token.
+- Refresh-owner tests no longer flake when the suite runs in parallel.
+
 ## [0.3.0] - 2026-10-23
 
 ### Added

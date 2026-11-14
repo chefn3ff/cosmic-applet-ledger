@@ -3,8 +3,8 @@ mod legacy;
 
 pub(crate) use flows::{
     AntigravityLoginFlow, ClaudeLoginFlow, CodexLoginFlow, CopilotLoginFlow, ElevenLabsLoginFlow,
-    GeminiLoginFlow, GrokLoginFlow, KimiLoginFlow, MinimaxLoginFlow, OpenCodeGoLoginFlow,
-    OpenRouterLoginFlow, ZaiLoginFlow,
+    FishLoginFlow, GeminiLoginFlow, GrokLoginFlow, KimiLoginFlow, MinimaxLoginFlow,
+    OpenCodeGoLoginFlow, OpenRouterLoginFlow, ZaiLoginFlow,
 };
 
 use super::{
@@ -248,6 +248,7 @@ pub(crate) enum LoginEventKind {
     Grok(GrokLoginEvent),
     OpenRouter(crate::providers::openrouter::login::OpenRouterLoginEvent),
     ElevenLabs(crate::providers::elevenlabs::login::ElevenLabsLoginEvent),
+    Fish(crate::providers::fish::login::FishLoginEvent),
     Zai(crate::providers::zai::login::ZaiLoginEvent),
 }
 

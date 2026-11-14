@@ -5,12 +5,13 @@ use super::super::super::{
     account_import_button, fl, row, widget,
 };
 use crate::app::login::{
-    ElevenLabsLoginFlow, KimiLoginFlow, LoginFlow, MinimaxLoginFlow, OpenCodeGoLoginFlow,
-    OpenRouterLoginFlow, ZaiLoginFlow,
+    ElevenLabsLoginFlow, FishLoginFlow, KimiLoginFlow, LoginFlow, MinimaxLoginFlow,
+    OpenCodeGoLoginFlow, OpenRouterLoginFlow, ZaiLoginFlow,
 };
 use crate::providers::elevenlabs::{
     ElevenLabsLoginEvent, ElevenLabsLoginState, ElevenLabsLoginStatus,
 };
+use crate::providers::fish::{FishLoginEvent, FishLoginState, FishLoginStatus};
 use crate::providers::grok::{GrokLoginState, GrokLoginStatus};
 use crate::providers::kimi::login::{KimiLoginEvent, KimiLoginState, KimiLoginStatus};
 use crate::providers::minimax::{MinimaxLoginEvent, MinimaxLoginState, MinimaxLoginStatus};
@@ -36,6 +37,10 @@ fn openrouter_login_message(event: OpenRouterLoginEvent) -> Message {
 
 fn elevenlabs_login_message(event: ElevenLabsLoginEvent) -> Message {
     ElevenLabsLoginFlow::wrap_event(event)
+}
+
+fn fish_login_message(event: FishLoginEvent) -> Message {
+    FishLoginFlow::wrap_event(event)
 }
 
 fn kimi_login_message(event: KimiLoginEvent) -> Message {
@@ -722,6 +727,75 @@ fn elevenlabs_login_fields(login: &ElevenLabsLoginState) -> Element<'_, Message>
         widget::text(fl!("account-label")).size(12),
         widget::text_input(fl!("account-label"), &login.label)
             .on_input(|label| elevenlabs_login_message(ElevenLabsLoginEvent::LabelChanged(label)))
+            .width(Length::Fill),
+    ]
+    .spacing(10)
+    .width(Length::Fill)
+    .into()
+}
+
+pub(super) fn fish_login_controls(
+    login: Option<&FishLoginState>,
+    enabled: bool,
+) -> Element<'_, Message> {
+    let Some(login) = login else {
+        return account_add_button(
+            fl!("account-add"),
+            enabled.then_some(Message::StartLogin(crate::model::ProviderId::Fish)),
+        );
+    };
+    let status = match login.status {
+        FishLoginStatus::Editing => "Configure Fish Audio Account",
+        FishLoginStatus::Failed => "Fish Audio Account Configuration Failed",
+    };
+    let mut content = cosmic::iced::widget::column![widget::text(status).size(13)]
+        .spacing(10)
+        .width(Length::Fill);
+    if let Some(error) = &login.error {
+        content = content.push(widget::text(error).size(13));
+    }
+    if login.status == FishLoginStatus::Editing {
+        content = content.push(fish_login_fields(login)).push(
+            row![
+                widget::button::standard(fl!("account-add"))
+                    .on_press_maybe(enabled.then_some(fish_login_message(FishLoginEvent::Saved))),
+                widget::button::text(fl!("account-cancel")).on_press_maybe(
+                    enabled.then_some(Message::CancelLogin(crate::model::ProviderId::Fish))
+                ),
+            ]
+            .spacing(8),
+        );
+    } else {
+        content = content.push(
+            row![
+                widget::button::text(fl!("account-add-another")).on_press_maybe(
+                    enabled.then_some(Message::StartLogin(crate::model::ProviderId::Fish))
+                ),
+                widget::button::text(fl!("account-dismiss")).on_press_maybe(
+                    enabled.then_some(Message::CancelLogin(crate::model::ProviderId::Fish))
+                ),
+            ]
+            .spacing(8),
+        );
+    }
+    content.into()
+}
+
+fn fish_login_fields(login: &FishLoginState) -> Element<'_, Message> {
+    cosmic::iced::widget::column![
+        widget::text("Fish Audio API Key").size(12),
+        widget::text_input::secure_input(
+            "API key",
+            &login.api_key,
+            Some(fish_login_message(FishLoginEvent::ApiKeyVisibilityToggled)),
+            !login.api_key_visible,
+        )
+        .on_input(|api_key| fish_login_message(FishLoginEvent::ApiKeyChanged(api_key)))
+        .on_submit(|_| fish_login_message(FishLoginEvent::Saved))
+        .width(Length::Fill),
+        widget::text(fl!("account-label")).size(12),
+        widget::text_input(fl!("account-label"), &login.label)
+            .on_input(|label| fish_login_message(FishLoginEvent::LabelChanged(label)))
             .width(Length::Fill),
     ]
     .spacing(10)

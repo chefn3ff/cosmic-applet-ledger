@@ -91,6 +91,12 @@ impl From<ElevenLabsError> for AppError {
     }
 }
 
+impl From<FishError> for AppError {
+    fn from(value: FishError) -> Self {
+        Self::Provider(ProviderError::Fish(value))
+    }
+}
+
 impl From<GrokError> for AppError {
     fn from(value: GrokError) -> Self {
         Self::Provider(ProviderError::Grok(value))
@@ -146,6 +152,7 @@ impl AppError {
             Self::Provider(ProviderError::OpenCodeGo(e)) => e.rate_limit_retry_after_secs(),
             Self::Provider(ProviderError::Grok(e)) => e.rate_limit_retry_after_secs(),
             Self::Provider(ProviderError::ElevenLabs(e)) => e.rate_limit_retry_after_secs(),
+            Self::Provider(ProviderError::Fish(e)) => e.rate_limit_retry_after_secs(),
             Self::Provider(ProviderError::OpenRouter(e)) => e.rate_limit_retry_after_secs(),
             _ => None,
         }
@@ -192,6 +199,8 @@ pub enum ProviderError {
     OpenRouter(#[from] OpenRouterError),
     #[error(transparent)]
     ElevenLabs(#[from] ElevenLabsError),
+    #[error(transparent)]
+    Fish(#[from] FishError),
 }
 
 impl ProviderError {
@@ -211,6 +220,7 @@ impl ProviderError {
             Self::Grok(error) => error.is_network_unavailable(),
             Self::OpenRouter(error) => error.is_network_unavailable(),
             Self::ElevenLabs(error) => error.is_network_unavailable(),
+            Self::Fish(error) => error.is_network_unavailable(),
         }
     }
 
@@ -230,6 +240,7 @@ impl ProviderError {
             Self::Grok(error) => error.requires_user_action(),
             Self::OpenRouter(error) => error.requires_user_action(),
             Self::ElevenLabs(error) => error.requires_user_action(),
+            Self::Fish(error) => error.requires_user_action(),
         }
     }
 
@@ -249,6 +260,7 @@ impl ProviderError {
             Self::Grok(error) => error.is_transient(),
             Self::OpenRouter(error) => error.is_transient(),
             Self::ElevenLabs(error) => error.is_transient(),
+            Self::Fish(error) => error.is_transient(),
         }
     }
 }
@@ -1013,6 +1025,52 @@ impl ElevenLabsError {
 }
 
 #[derive(Debug, Error)]
+pub enum FishError {
+    #[error("Fish Audio login required")]
+    LoginRequired,
+    #[error("Fish Audio API key is invalid")]
+    InvalidApiKey,
+    #[error("Fish Audio request failed")]
+    UsageRequest(#[source] reqwest::Error),
+    #[error("Fish Audio endpoint returned HTTP {status}")]
+    UsageHttp { status: u16 },
+    #[error("failed to decode Fish Audio response")]
+    DecodeUsage(#[source] serde_json::Error),
+    #[error("Rate limited by Fish Audio — will retry automatically")]
+    RateLimited { retry_after_secs: Option<u64> },
+}
+
+impl FishError {
+    #[must_use]
+    pub fn rate_limit_retry_after_secs(&self) -> Option<u64> {
+        match self {
+            Self::RateLimited { retry_after_secs } => *retry_after_secs,
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn is_network_unavailable(&self) -> bool {
+        matches!(self, Self::UsageRequest(source) if request_could_not_reach_network(source))
+    }
+
+    #[must_use]
+    pub fn requires_user_action(&self) -> bool {
+        matches!(self, Self::LoginRequired | Self::InvalidApiKey)
+    }
+
+    #[must_use]
+    pub fn is_transient(&self) -> bool {
+        match self {
+            Self::RateLimited { .. } => true,
+            Self::UsageRequest(source) => request_could_not_reach_network(source),
+            Self::UsageHttp { status } => matches!(*status, 500 | 502 | 503 | 504),
+            Self::LoginRequired | Self::InvalidApiKey | Self::DecodeUsage(_) => false,
+        }
+    }
+}
+
+#[derive(Debug, Error)]
 #[allow(dead_code)]
 pub enum GrokError {
     #[error("failed to read Grok account storage: {0}")]
@@ -1255,6 +1313,34 @@ mod tests {
         assert_eq!(err.rate_limit_retry_after_secs(), Some(42));
         assert!(err.is_transient());
         assert!(!err.requires_user_action());
+    }
+
+    #[test]
+    fn fish_rate_limit_routes_retry_after_through_app_error() {
+        let err = AppError::Provider(ProviderError::Fish(FishError::RateLimited {
+            retry_after_secs: Some(42),
+        }));
+        assert_eq!(err.rate_limit_retry_after_secs(), Some(42));
+        assert!(err.is_transient());
+        assert!(!err.requires_user_action());
+    }
+
+    #[test]
+    fn fish_auth_failures_require_user_action() {
+        for error in [FishError::LoginRequired, FishError::InvalidApiKey] {
+            let err = AppError::Provider(ProviderError::Fish(error));
+            assert!(err.requires_user_action());
+            assert!(!err.is_transient());
+        }
+    }
+
+    #[test]
+    fn fish_http_errors_classify_by_status() {
+        let server = AppError::Provider(ProviderError::Fish(FishError::UsageHttp { status: 503 }));
+        assert!(server.is_transient());
+        let client = AppError::Provider(ProviderError::Fish(FishError::UsageHttp { status: 400 }));
+        assert!(!client.is_transient());
+        assert!(!client.requires_user_action());
     }
 
     #[test]

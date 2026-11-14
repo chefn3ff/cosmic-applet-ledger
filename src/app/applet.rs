@@ -43,7 +43,36 @@ impl AppletBarLayout {
     }
 }
 
+/// Debug builds only: `LEDGER_DEBUG_POPUP_WINDOW=1` makes a standalone run
+/// show the popup itself in a normal window instead of the panel button, so
+/// the popup can be seen and screenshotted without a panel or a click.
+/// `LEDGER_DEBUG_POPUP_WINDOW=settings` opens it on the Settings page.
+pub(crate) fn debug_popup_window() -> bool {
+    debug_popup_window_value().is_some()
+}
+
+pub(crate) fn debug_popup_starts_on_settings() -> bool {
+    debug_popup_window_value().as_deref() == Some("settings")
+}
+
+fn debug_popup_window_value() -> Option<String> {
+    if !cfg!(debug_assertions) {
+        return None;
+    }
+    std::env::var("LEDGER_DEBUG_POPUP_WINDOW")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| value == "1" || value == "settings")
+}
+
 pub(crate) fn applet_settings() -> cosmic::app::Settings {
+    if debug_popup_window() {
+        return cosmic::app::Settings::default()
+            .size(Size::new(420.0, 980.0))
+            .size_limits(Limits::NONE.min_width(420.0).min_height(980.0))
+            .client_decorations(false)
+            .default_text_size(14.0);
+    }
     let preview_core = cosmic::Core::default();
     let config = crate::config::cosmic_config_context(
         <AppModel as cosmic::Application>::APP_ID,

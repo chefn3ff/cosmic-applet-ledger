@@ -11,6 +11,7 @@ use self::badges::{
     badge_warning_soft, badge_with_tooltip, disabled_account_label_text, format_plan_label,
     plan_badge,
 };
+pub(super) use self::detail::other_ring_provider;
 use self::detail::{empty_state_view, selected_provider_view};
 use self::settings::{about_view, manage_providers_view, provider_settings_view, settings_view};
 use super::provider_assets::{provider_icon_handle, provider_icon_variant};
@@ -69,6 +70,7 @@ pub struct ProviderLoginStates<'a> {
     pub grok: Option<&'a crate::providers::grok::GrokLoginState>,
     pub openrouter: Option<&'a crate::providers::openrouter::login::OpenRouterLoginState>,
     pub elevenlabs: Option<&'a crate::providers::elevenlabs::login::ElevenLabsLoginState>,
+    pub fish: Option<&'a crate::providers::fish::login::FishLoginState>,
     pub zai: Option<&'a ZaiLoginState>,
 }
 
@@ -1011,7 +1013,7 @@ fn provider_summary(
     }
 
     let switcher_btn = widget::tooltip::tooltip(
-        widget::button::icon(widget::icon::from_name("view-more-horizontal-symbolic"))
+        widget::button::icon(super::provider_assets::switch_provider_icon())
             .extra_small()
             .padding(4)
             .class(header_icon_button_class(false))

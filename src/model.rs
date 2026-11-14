@@ -16,6 +16,7 @@ pub enum ProviderId {
     Cursor,
     #[serde(rename = "elevenlabs")]
     ElevenLabs,
+    Fish,
     Gemini,
     Grok,
     Kimi,
@@ -26,13 +27,14 @@ pub enum ProviderId {
 }
 
 impl ProviderId {
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 14] = [
         Self::Antigravity,
         Self::Claude,
         Self::Codex,
         Self::Copilot,
         Self::Cursor,
         Self::ElevenLabs,
+        Self::Fish,
         Self::Gemini,
         Self::Grok,
         Self::Kimi,
@@ -51,6 +53,7 @@ impl ProviderId {
             Self::Copilot => "Copilot",
             Self::Cursor => "Cursor",
             Self::ElevenLabs => "ElevenLabs",
+            Self::Fish => "Fish Audio",
             Self::Gemini => "Gemini",
             Self::Grok => "Grok",
             Self::Kimi => "Kimi",

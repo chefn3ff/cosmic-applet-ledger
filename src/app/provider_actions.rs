@@ -402,6 +402,36 @@ impl AppModel {
         Task::none()
     }
 
+    pub(super) fn set_fish_ring_enabled(&mut self, enabled: bool) -> Task<Message> {
+        let previous = self.config.fish_ring_enabled;
+        self.write_config(|new_config| {
+            new_config.fish_ring_enabled = enabled;
+        });
+        tracing::info!(
+            process_id = %self.process_info.id,
+            previous,
+            enabled,
+            "fish ring setting changed"
+        );
+        Task::none()
+    }
+
+    /// Swaps the header ring between ElevenLabs and Fish. The view only makes
+    /// the ring clickable while both rings are showable, so this is never a
+    /// no-op from the UI; the choice is saved, so it survives a restart.
+    pub(super) fn switch_header_ring(&mut self) -> Task<Message> {
+        let next = super::popup_view::other_ring_provider(self.config.header_ring_provider);
+        self.write_config(|new_config| {
+            new_config.header_ring_provider = next;
+        });
+        tracing::info!(
+            process_id = %self.process_info.id,
+            ring = next.label(),
+            "header ring switched"
+        );
+        Task::none()
+    }
+
     pub(super) fn set_panel_icon_style(&mut self, style: PanelIconStyle) -> Task<Message> {
         let previous = self.config.panel_icon_style;
         self.write_config(|new_config| {
@@ -596,6 +626,7 @@ pub(super) fn popup_route_label(route: PopupRoute) -> &'static str {
             ProviderId::OpenCodeGo => "manage_accounts_opencode_go",
             ProviderId::OpenRouter => "manage_accounts_openrouter",
             ProviderId::ElevenLabs => "manage_accounts_elevenlabs",
+            ProviderId::Fish => "manage_accounts_fish",
             ProviderId::Zai => "manage_accounts_zai",
         },
         PopupRoute::About => "about",

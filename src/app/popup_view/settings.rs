@@ -347,14 +347,22 @@ pub(super) fn settings_view(
     .align_y(Alignment::Center)
     .width(Length::Fill);
 
-    let mut preference_rows = cosmic::iced::widget::column![panel_bars_row, refresh_row]
+    // Everyday settings first; optional features (header rings for enabled
+    // credit providers) follow under their own sub-heading.
+    let mut preference_rows = cosmic::iced::widget::column![refresh_row, panel_bars_row]
         .spacing(12)
         .width(Length::Fill);
-    if state
-        .provider(ProviderId::ElevenLabs)
-        .is_some_and(|elevenlabs| elevenlabs.enabled)
-    {
-        preference_rows = preference_rows.push(elevenlabs_ring_row(config.elevenlabs_ring_enabled));
+    let optional_rows = optional_feature_rows(state, config);
+    if !optional_rows.is_empty() {
+        preference_rows = preference_rows.push(divider()).push(
+            container(widget::text("OPTIONAL").size(11)).style(|_| widget::container::Style {
+                text_color: Some(Color::from_rgba(1.0, 1.0, 1.0, 0.45)),
+                ..Default::default()
+            }),
+        );
+        for row in optional_rows {
+            preference_rows = preference_rows.push(row);
+        }
     }
 
     let preferences_container = container(preference_rows)
@@ -393,23 +401,55 @@ pub(super) fn settings_view(
     .into()
 }
 
+/// Rows in the OPTIONAL group, in display order. Each ring row shows only
+/// while its provider is enabled.
+fn optional_feature_rows(state: &AppState, config: &Config) -> Vec<Element<'static, Message>> {
+    let enabled = |provider| state.provider(provider).is_some_and(|entry| entry.enabled);
+    let mut rows = Vec::new();
+    if enabled(ProviderId::ElevenLabs) {
+        rows.push(elevenlabs_ring_row(config.elevenlabs_ring_enabled));
+    }
+    if enabled(ProviderId::Fish) {
+        rows.push(credit_ring_row(
+            "Fish Credits Ring",
+            "Show Fish Audio API credit on every provider",
+            config.fish_ring_enabled,
+            Message::SetFishRingEnabled,
+        ));
+    }
+    rows
+}
+
 /// PREFERENCES row for the ElevenLabs credits ring in other providers' headers.
 fn elevenlabs_ring_row(enabled: bool) -> Element<'static, Message> {
+    credit_ring_row(
+        "ElevenLabs Credits Ring",
+        "Show ElevenLabs credits on every provider",
+        enabled,
+        Message::SetElevenLabsRingEnabled,
+    )
+}
+
+/// An OFF/ON row for one credit ring in other providers' headers.
+fn credit_ring_row(
+    title: &'static str,
+    subtitle: &'static str,
+    enabled: bool,
+    message: fn(bool) -> Message,
+) -> Element<'static, Message> {
     row![
         cosmic::iced::widget::column![
-            widget::text("ElevenLabs Credits Ring").size(14),
-            container(widget::text("Show ElevenLabs credits on every provider").size(11)).style(
-                |_| widget::container::Style {
-                    text_color: Some(Color::from_rgba(1.0, 1.0, 1.0, 0.45)),
-                    ..Default::default()
-                }
-            )
+            widget::text(title).size(14),
+            container(widget::text(subtitle).size(11)).style(|_| widget::container::Style {
+                text_color: Some(Color::from_rgba(1.0, 1.0, 1.0, 0.45)),
+                ..Default::default()
+            })
         ]
         .spacing(2),
         cosmic::iced::widget::Space::new().width(Length::Fill),
         row![
-            preference_choice_button("OFF", !enabled, Message::SetElevenLabsRingEnabled(false)),
-            preference_choice_button("ON", enabled, Message::SetElevenLabsRingEnabled(true)),
+            preference_choice_button("OFF", !enabled, message(false)),
+            preference_choice_button("ON", enabled, message(true)),
         ]
         .spacing(4),
     ]

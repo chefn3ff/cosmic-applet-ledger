@@ -361,6 +361,7 @@ impl ProviderAccountStorage {
             ProviderId::OpenCodeGo => "opencode_go",
             ProviderId::OpenRouter => "openrouter",
             ProviderId::ElevenLabs => "elevenlabs",
+            ProviderId::Fish => "fish",
             ProviderId::Zai => "zai",
         };
         let millis = Utc::now().timestamp_millis();

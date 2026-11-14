@@ -44,6 +44,7 @@ fn markers(provider: ProviderId) -> &'static [Marker] {
     const ZAI: [Marker; 0] = [];
     const OPENROUTER: [Marker; 0] = [];
     const ELEVENLABS: [Marker; 0] = [];
+    const FISH: [Marker; 0] = [];
     match provider {
         ProviderId::Antigravity => &ANTIGRAVITY,
         ProviderId::Claude => &CLAUDE,
@@ -57,6 +58,7 @@ fn markers(provider: ProviderId) -> &'static [Marker] {
         ProviderId::OpenCodeGo => &OPENCODE_GO,
         ProviderId::OpenRouter => &OPENROUTER,
         ProviderId::ElevenLabs => &ELEVENLABS,
+        ProviderId::Fish => &FISH,
         ProviderId::Zai => &ZAI,
     }
 }

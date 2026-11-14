@@ -46,6 +46,7 @@ use crate::providers::codex::{self, CodexLoginEvent, CodexLoginState, CodexLogin
 use crate::providers::copilot::{self, CopilotLoginEvent, CopilotLoginState, CopilotLoginStatus};
 use crate::providers::cursor::{self, CursorScanResult, CursorScanState};
 use crate::providers::elevenlabs::login::ElevenLabsLoginState;
+use crate::providers::fish::login::FishLoginState;
 use crate::providers::gemini::{self, GeminiLoginEvent, GeminiLoginState, GeminiLoginStatus};
 use crate::providers::grok::{self, GrokLoginEvent, GrokLoginState, GrokLoginStatus};
 use crate::providers::kimi::{
@@ -142,6 +143,8 @@ pub struct AppModel {
     pub elevenlabs_login: Option<ElevenLabsLoginState>,
     pub openrouter_login_handle: Option<Handle>,
     pub elevenlabs_login_handle: Option<Handle>,
+    pub fish_login: Option<FishLoginState>,
+    pub fish_login_handle: Option<Handle>,
     zai_login: Option<ZaiLoginState>,
     zai_login_handle: Option<Handle>,
 }
@@ -220,9 +223,15 @@ pub enum Message {
     SetResetTimeFormat(ResetTimeFormat),
     SetUsageAmountFormat(UsageAmountFormat),
     SetElevenLabsRingEnabled(bool),
+    SetFishRingEnabled(bool),
+    /// Header credit ring clicked: show the other service's ring.
+    SwitchHeaderRing,
     SetPanelIconStyle(PanelIconStyle),
     CheckUpdates,
-    UpdateChecked { status: UpdateStatus, attempt: u32 },
+    UpdateChecked {
+        status: UpdateStatus,
+        attempt: u32,
+    },
     RetryUpdateCheck(u32),
     OpenUrl(String),
     HostCliAuthChanged,
@@ -304,7 +313,11 @@ impl cosmic::Application for AppModel {
             selected_provider,
             detail_account_page: 0,
             provider_viewport_offset: 0,
-            popup_route: PopupRoute::ProviderDetail,
+            popup_route: if applet::debug_popup_starts_on_settings() {
+                PopupRoute::Settings
+            } else {
+                PopupRoute::ProviderDetail
+            },
             update_status: UpdateStatus::Unchecked,
             launch_mode,
             shared_control,
@@ -334,6 +347,8 @@ impl cosmic::Application for AppModel {
             elevenlabs_login: None,
             openrouter_login_handle: None,
             elevenlabs_login_handle: None,
+            fish_login: None,
+            fish_login_handle: None,
             zai_login: None,
             zai_login_handle: None,
         };
@@ -399,6 +414,9 @@ impl cosmic::Application for AppModel {
 
         match self.launch_mode {
             LaunchMode::Panel => self.core.applet.autosize_window(button).into(),
+            LaunchMode::Standalone if applet::debug_popup_window() => {
+                self.view_window(Id::RESERVED)
+            }
             LaunchMode::Standalone => button,
         }
     }
@@ -421,6 +439,7 @@ impl cosmic::Application for AppModel {
                 grok: self.grok_login.as_ref(),
                 openrouter: self.openrouter_login.as_ref(),
                 elevenlabs: self.elevenlabs_login.as_ref(),
+                fish: self.fish_login.as_ref(),
                 zai: self.zai_login.as_ref(),
             },
             popup_view::DetailSelection {
@@ -566,6 +585,12 @@ impl AppModel {
             Message::SetElevenLabsRingEnabled(enabled) => {
                 return Some(self.set_elevenlabs_ring_enabled(enabled));
             }
+            Message::SetFishRingEnabled(enabled) => {
+                return Some(self.set_fish_ring_enabled(enabled));
+            }
+            Message::SwitchHeaderRing => {
+                return Some(self.switch_header_ring());
+            }
             Message::SetPanelIconStyle(style) => {
                 return Some(self.set_panel_icon_style(style));
             }
@@ -632,6 +657,9 @@ impl AppModel {
                     }
                     (ProviderId::ElevenLabs, login::LoginEventKind::ElevenLabs(event)) => {
                         login::ElevenLabsLoginFlow::on_event(self, event)
+                    }
+                    (ProviderId::Fish, login::LoginEventKind::Fish(event)) => {
+                        login::FishLoginFlow::on_event(self, event)
                     }
                     (ProviderId::Zai, login::LoginEventKind::Zai(event)) => {
                         login::ZaiLoginFlow::on_event(self, event)

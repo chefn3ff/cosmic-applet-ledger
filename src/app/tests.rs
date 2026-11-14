@@ -1164,6 +1164,8 @@ pub(super) fn test_app(refresh_owner: Option<RefreshOwner>) -> AppModel {
         elevenlabs_login: None,
         openrouter_login_handle: None,
         elevenlabs_login_handle: None,
+        fish_login: None,
+        fish_login_handle: None,
         zai_login: None,
         zai_login_handle: None,
     }
@@ -1481,6 +1483,7 @@ fn delete_account_requests_refresh_for_all_providers() {
                 "remove".to_string()
             }
             ProviderId::ElevenLabs
+            | ProviderId::Fish
             | ProviderId::Grok
             | ProviderId::OpenCodeGo
             | ProviderId::OpenRouter => continue,
@@ -1542,4 +1545,33 @@ fn refresh_owner(name: &str) -> RefreshOwner {
         RefreshOwnerAttempt::Owner(owner) => owner,
         RefreshOwnerAttempt::NonOwner(_) => panic!("test lock should be available"),
     }
+}
+
+#[test]
+fn clicking_the_header_ring_switches_service_and_saves_it() {
+    let _env = crate::test_support::test_env();
+    let mut app = test_app(None);
+    app.config.elevenlabs_ring_enabled = true;
+    app.config.fish_ring_enabled = true;
+    assert_eq!(app.config.header_ring_provider, ProviderId::ElevenLabs);
+
+    let _ = app.handle_message(Message::SwitchHeaderRing);
+    assert_eq!(app.config.header_ring_provider, ProviderId::Fish);
+
+    let _ = app.handle_message(Message::SwitchHeaderRing);
+    assert_eq!(app.config.header_ring_provider, ProviderId::ElevenLabs);
+}
+
+#[test]
+fn a_tick_never_switches_the_header_ring() {
+    let _env = crate::test_support::test_env();
+    let mut app = test_app(None);
+    app.config.elevenlabs_ring_enabled = true;
+    app.config.fish_ring_enabled = true;
+    app.config.header_ring_provider = ProviderId::Fish;
+
+    let _ = app.handle_message(Message::Tick);
+    let _ = app.handle_message(Message::RefreshNow);
+
+    assert_eq!(app.config.header_ring_provider, ProviderId::Fish);
 }

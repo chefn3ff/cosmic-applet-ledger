@@ -48,6 +48,7 @@ pub(super) fn start_login(app: &mut AppModel, provider: ProviderId) -> Task<Mess
         ProviderId::OpenCodeGo => login::start_login::<login::OpenCodeGoLoginFlow>(app),
         ProviderId::OpenRouter => login::start_login::<login::OpenRouterLoginFlow>(app),
         ProviderId::ElevenLabs => login::start_login::<login::ElevenLabsLoginFlow>(app),
+        ProviderId::Fish => login::start_login::<login::FishLoginFlow>(app),
         ProviderId::Zai => login::start_login::<login::ZaiLoginFlow>(app),
     }
 }
@@ -103,6 +104,7 @@ pub(super) fn cancel_login(app: &mut AppModel, provider: ProviderId) {
         ProviderId::OpenCodeGo => login::cancel_login::<login::OpenCodeGoLoginFlow>(app),
         ProviderId::OpenRouter => login::cancel_login::<login::OpenRouterLoginFlow>(app),
         ProviderId::ElevenLabs => login::cancel_login::<login::ElevenLabsLoginFlow>(app),
+        ProviderId::Fish => login::cancel_login::<login::FishLoginFlow>(app),
         ProviderId::Zai => login::cancel_login::<login::ZaiLoginFlow>(app),
     }
 }
@@ -133,6 +135,7 @@ pub(super) fn reauthenticate(
         ProviderId::ElevenLabs => {
             login::reauthenticate::<login::ElevenLabsLoginFlow>(app, account_id)
         }
+        ProviderId::Fish => login::reauthenticate::<login::FishLoginFlow>(app, account_id),
         ProviderId::Zai => login::reauthenticate::<login::ZaiLoginFlow>(app, account_id),
     }
 }
@@ -148,6 +151,7 @@ pub(super) fn sync_metadata_after_refresh(app: &mut AppModel, provider: Provider
         | ProviderId::OpenCodeGo
         | ProviderId::OpenRouter
         | ProviderId::ElevenLabs
+        | ProviderId::Fish
         | ProviderId::Zai => {}
         ProviderId::Claude => {
             app.update_claude_metadata_from_state();

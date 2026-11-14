@@ -26,7 +26,7 @@ Ledger sits in the COSMIC panel and shows how much of your AI quota you've used 
 
 - **One layout for every provider.** Each provider's page shows a **LIMITS** card with its session and weekly windows and a reset countdown.
 - **Token charts.** **TOKENS BY DAY** covers the last seven days (with today highlighted) and **TOKENS BY MODEL** ranks your most-used models. Available for Claude and OpenRouter.
-- **Thirteen providers** — see [Providers](#providers).
+- **Fourteen providers** — see [Providers](#providers).
 - **Multiple accounts per provider**, with an in-app sign-in flow for each.
 - **Automatic detection.** Providers found on your machine are enabled for you; the rest can be switched on in Settings.
 - **Update notices.** Ledger checks GitHub for a new release on startup and shows it on the About page. It never downloads or installs anything itself.
@@ -41,6 +41,7 @@ Ledger sits in the COSMIC panel and shows how much of your AI quota you've used 
 | Copilot | GitHub device login, or import from OpenCode | Chat/completions (Free) or premium requests (paid) |
 | Cursor | Scans the Cursor IDE's local sign-in | Total and API usage |
 | ElevenLabs | API key | Monthly credit usage and reset, credits by API key; optional credits ring on every other provider |
+| Fish Audio | API key | **API credit**: the pay-as-you-go balance that audio API calls spend, as dollars left of what you have topped up. Not Plus-plan or subscription credits; optional credits ring, which a click swaps with the ElevenLabs ring when both are on |
 | Gemini | Google (browser) — enable manually | Pro, Flash and Lite quota |
 | Grok | xAI (browser), or import from the Grok CLI | Weekly credit usage |
 | Kimi | API key | Weekly and rate-limit windows |

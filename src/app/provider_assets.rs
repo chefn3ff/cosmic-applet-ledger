@@ -80,9 +80,25 @@ pub fn provider_icon_handle(provider: ProviderId, variant: ProviderIconVariant) 
         (ProviderId::ElevenLabs, ProviderIconVariant::Reversed) => {
             include_bytes!("../../resources/providers/elevenlabs-reversed.svg")
         }
+        (ProviderId::Fish, ProviderIconVariant::Default) => {
+            include_bytes!("../../resources/providers/fish.svg")
+        }
+        (ProviderId::Fish, ProviderIconVariant::Reversed) => {
+            include_bytes!("../../resources/providers/fish-reversed.svg")
+        }
     };
 
     icon::from_svg_bytes(bytes)
+}
+
+/// Two stacked arrows pointing opposite ways: the Switch Provider button.
+/// Symbolic, so it takes the theme colour like the stock header icons.
+pub fn switch_provider_icon() -> Handle {
+    let mut handle = icon::from_svg_bytes(
+        include_bytes!("../../resources/icons/switch-provider-symbolic.svg").as_slice(),
+    );
+    handle.symbolic = true;
+    handle
 }
 
 pub fn app_icon_handle() -> Handle {

@@ -6,6 +6,7 @@ mod codex_adapter;
 mod copilot_adapter;
 mod cursor_adapter;
 mod elevenlabs_adapter;
+mod fish_adapter;
 mod gemini_adapter;
 mod grok_adapter;
 mod kimi_adapter;
@@ -36,6 +37,7 @@ pub(super) fn adapter(provider: ProviderId) -> &'static dyn ProviderAdapter {
         ProviderId::OpenCodeGo => &OPENCODE_GO_ADAPTER,
         ProviderId::OpenRouter => &OPENROUTER_ADAPTER,
         ProviderId::ElevenLabs => &ELEVENLABS_ADAPTER,
+        ProviderId::Fish => &FISH_ADAPTER,
         ProviderId::Zai => &ZAI_ADAPTER,
     }
 }
@@ -57,6 +59,7 @@ static OPENROUTER_ADAPTER: openrouter_adapter::OpenRouterAdapter =
     openrouter_adapter::OpenRouterAdapter;
 static ELEVENLABS_ADAPTER: elevenlabs_adapter::ElevenLabsAdapter =
     elevenlabs_adapter::ElevenLabsAdapter;
+static FISH_ADAPTER: fish_adapter::FishAdapter = fish_adapter::FishAdapter;
 
 pub(super) fn opencode_go_system_active_account_id(
     managed_accounts: &[crate::config::ManagedOpenCodeGoAccountConfig],

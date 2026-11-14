@@ -3,9 +3,10 @@
 use crate::config::{
     Config, ManagedAntigravityAccountConfig, ManagedClaudeAccountConfig, ManagedCodexAccountConfig,
     ManagedCopilotAccountConfig, ManagedCursorAccountConfig, ManagedElevenLabsAccountConfig,
-    ManagedGeminiAccountConfig, ManagedGrokAccountConfig, ManagedKimiAccountConfig,
-    ManagedMinimaxAccountConfig, ManagedOpenCodeGoAccountConfig, ManagedOpenRouterAccountConfig,
-    ManagedZaiAccountConfig, ProviderEnablement, ProviderVisibilityMode, paths,
+    ManagedFishAccountConfig, ManagedGeminiAccountConfig, ManagedGrokAccountConfig,
+    ManagedKimiAccountConfig, ManagedMinimaxAccountConfig, ManagedOpenCodeGoAccountConfig,
+    ManagedOpenRouterAccountConfig, ManagedZaiAccountConfig, ProviderEnablement,
+    ProviderVisibilityMode, paths,
 };
 use crate::model::{
     AccountSelectionStatus, AppState, AuthState, ExtraUsageState, ProviderAccountRuntimeState,
@@ -35,6 +36,7 @@ const MINIMAX_PRIMARY_ID: &str = "yapcap-demo:minimax-primary";
 const OPENCODE_GO_ID: &str = "yapcap-demo:opencode-go";
 const OPENROUTER_PRIMARY_ID: &str = "yapcap-demo:openrouter-primary";
 const ELEVENLABS_PRIMARY_ID: &str = "yapcap-demo:elevenlabs-primary";
+const FISH_PRIMARY_ID: &str = "yapcap-demo:fish-primary";
 const ZAI_PRIMARY_ID: &str = "yapcap-demo:zai-coding-plan";
 
 fn is_val_truthy(val: &str) -> bool {
@@ -118,6 +120,7 @@ pub fn apply_config(config: &mut Config) {
     config.opencode_go_enablement = ProviderEnablement::Enabled;
     config.openrouter_enablement = ProviderEnablement::Enabled;
     config.elevenlabs_enablement = ProviderEnablement::Enabled;
+    config.fish_enablement = ProviderEnablement::Enabled;
     config.zai_enablement = ProviderEnablement::Enabled;
 
     config.antigravity_managed_accounts = demo_antigravity_accounts();
@@ -132,6 +135,7 @@ pub fn apply_config(config: &mut Config) {
     config.opencode_go_managed_accounts = demo_opencode_go_accounts();
     config.openrouter_managed_accounts = demo_openrouter_accounts();
     config.elevenlabs_managed_accounts = demo_elevenlabs_accounts();
+    config.fish_managed_accounts = demo_fish_accounts();
     config.zai_managed_accounts = demo_zai_accounts();
 
     config.provider_visibility_mode = ProviderVisibilityMode::UserManaged;
@@ -148,6 +152,7 @@ pub fn apply_config(config: &mut Config) {
     config.selected_opencode_go_account_ids = vec![OPENCODE_GO_ID.to_string()];
     config.selected_openrouter_account_ids = vec![OPENROUTER_PRIMARY_ID.to_string()];
     config.selected_elevenlabs_account_ids = vec![ELEVENLABS_PRIMARY_ID.to_string()];
+    config.selected_fish_account_ids = vec![FISH_PRIMARY_ID.to_string()];
     config.selected_zai_account_ids = vec![ZAI_PRIMARY_ID.to_string()];
 }
 
@@ -185,6 +190,8 @@ pub fn strip_leaked_state(config: &mut Config) -> bool {
     changed |= retain_len_changed(&mut config.elevenlabs_managed_accounts, |account| {
         &account.id
     });
+    changed |= strip_ids(&mut config.selected_fish_account_ids);
+    changed |= retain_len_changed(&mut config.fish_managed_accounts, |account| &account.id);
     changed |= strip_ids(&mut config.selected_zai_account_ids);
     changed |= retain_len_changed(&mut config.zai_managed_accounts, |account| &account.id);
     changed
@@ -258,6 +265,7 @@ fn demo_system_active_account_id(provider: ProviderId) -> Option<String> {
         ProviderId::OpenCodeGo => return None,
         ProviderId::OpenRouter => return None,
         ProviderId::ElevenLabs => return None,
+        ProviderId::Fish => return None,
         ProviderId::Zai => return None,
     };
     Some(id.to_string())
@@ -277,6 +285,7 @@ fn demo_source(provider: ProviderId) -> String {
         ProviderId::OpenCodeGo => "API Key".to_string(),
         ProviderId::OpenRouter => "API Key".to_string(),
         ProviderId::ElevenLabs => "API Key".to_string(),
+        ProviderId::Fish => "API Key".to_string(),
         ProviderId::Zai => "API Key".to_string(),
     }
 }
@@ -470,6 +479,18 @@ fn demo_runtime_accounts(provider: ProviderId) -> Vec<ProviderAccountRuntimeStat
                 auth_state: AuthState::Ready,
                 error: None,
                 snapshot: snapshot_elevenlabs(),
+            },
+        )],
+        ProviderId::Fish => vec![demo_account(
+            provider,
+            DemoAccount {
+                account_id: FISH_PRIMARY_ID,
+                label: "Fish Audio",
+                last_success_at: now - Duration::minutes(2),
+                health: ProviderHealth::Ok,
+                auth_state: AuthState::Ready,
+                error: None,
+                snapshot: snapshot_fish(),
             },
         )],
         ProviderId::OpenRouter => vec![demo_account(
@@ -1026,6 +1047,18 @@ fn demo_elevenlabs_accounts() -> Vec<ManagedElevenLabsAccountConfig> {
     }]
 }
 
+fn demo_fish_accounts() -> Vec<ManagedFishAccountConfig> {
+    let now = demo_timestamp();
+    vec![ManagedFishAccountConfig {
+        id: FISH_PRIMARY_ID.to_string(),
+        label: "Fish Audio".to_string(),
+        api_key_source: "Demo".to_string(),
+        created_at: now,
+        updated_at: now,
+        last_authenticated_at: Some(now),
+    }]
+}
+
 fn demo_zai_accounts() -> Vec<ManagedZaiAccountConfig> {
     let now = demo_timestamp();
     vec![ManagedZaiAccountConfig {
@@ -1289,6 +1322,39 @@ fn snapshot_elevenlabs() -> UsageSnapshot {
                 credits: 1_300,
             },
         ],
+    }
+}
+
+fn snapshot_fish() -> UsageSnapshot {
+    let now = Utc::now();
+    UsageSnapshot {
+        provider: ProviderId::Fish,
+        source: "API Key".to_string(),
+        updated_at: now,
+        headline: UsageHeadline(0),
+        windows: vec![UsageWindow {
+            label: "API credit".to_string(),
+            used_percent: 1.065_32 / 50.0 * 100.0,
+            reset_at: None,
+            window_seconds: None,
+            reset_description: None,
+            group: None,
+        }],
+        provider_cost: Some(ProviderCost {
+            used: 1.065_32,
+            limit: Some(50.0),
+            units: "USD".to_string(),
+        }),
+        extra_usage: None,
+        identity: ProviderIdentity {
+            email: None,
+            account_id: None,
+            plan: None,
+            display_name: None,
+        },
+        tokens_by_day: Vec::new(),
+        tokens_by_model: Vec::new(),
+        credits_by_key: Vec::new(),
     }
 }
 
@@ -1673,6 +1739,7 @@ mod tests {
         assert_eq!(config.zai_managed_accounts.len(), 1);
         assert_eq!(config.openrouter_managed_accounts.len(), 1);
         assert_eq!(config.elevenlabs_managed_accounts.len(), 1);
+        assert_eq!(config.fish_managed_accounts.len(), 1);
         assert_eq!(config.selected_codex_account_ids.len(), 1);
         assert_eq!(config.selected_claude_account_ids.len(), 1);
         assert_eq!(config.selected_cursor_account_ids.len(), 1);
@@ -1768,6 +1835,7 @@ mod tests {
                     .iter()
                     .map(|a| &a.id)
                     .collect(),
+                ProviderId::Fish => config.fish_managed_accounts.iter().map(|a| &a.id).collect(),
                 ProviderId::OpenRouter => config
                     .openrouter_managed_accounts
                     .iter()

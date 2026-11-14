@@ -55,6 +55,8 @@ pub(super) fn test_app() -> AppModel {
         elevenlabs_login: None,
         openrouter_login_handle: None,
         elevenlabs_login_handle: None,
+        fish_login: None,
+        fish_login_handle: None,
         zai_login: None,
         zai_login_handle: None,
     }
