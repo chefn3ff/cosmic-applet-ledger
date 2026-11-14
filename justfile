@@ -1,6 +1,8 @@
 name := 'cosmic-applet-ledger'
 name-debug := 'cosmic-applet-ledger-debug'
-appid := 'io.github.mrn3ff.cosmic-applet-ledger'
+appid := 'io.github.chefn3ff.cosmic-applet-ledger'
+# App ID up to 0.4.0, before the GitHub account rename; `install` cleans it up.
+legacy-appid := 'io.github.mrn3ff.cosmic-applet-ledger'
 flatpak-manifest := 'packaging/' + appid + '.json'
 
 rootdir := ''
@@ -125,12 +127,20 @@ remove-from-panel id=appid:
     fi
 
 # Installs files
-install: build-release add-to-panel
+install: build-release remove-legacy add-to-panel
     install -Dm0755 {{ cargo-target-dir / 'release' / name }} {{bin-dst}}
     install -Dm0644 resources/app.desktop {{desktop-dst}}
     install -Dm0644 resources/app.metainfo.xml {{appdata-dst}}
     install -Dm0644 resources/ledger-icon/linux/hicolor/scalable/apps/ledger.svg {{icon-dst}}
     install -Dm0644 resources/ledger-icon/linux/hicolor/symbolic/apps/ledger-symbolic.svg {{icon-symbolic-dst}}
+
+# Removes the panel entry and files installed under the pre-0.4.1 app ID.
+# Settings are copied to the new ID by Ledger itself on its first start.
+remove-legacy: (remove-from-panel legacy-appid)
+    rm -f {{ base-dir / 'share' / 'applications' / legacy-appid + '.desktop' }} \
+        {{ base-dir / 'share' / 'appdata' / legacy-appid + '.metainfo.xml' }} \
+        {{ base-dir / 'share' / 'icons' / 'hicolor' / 'scalable' / 'apps' / legacy-appid + '.svg' }} \
+        {{ base-dir / 'share' / 'icons' / 'hicolor' / 'symbolic' / 'apps' / legacy-appid + '-symbolic.svg' }}
 
 # Installs debug build as `cosmic-applet-ledger-debug` and a separate desktop entry (LEDGER_DEMO) for screenshots
 install-demo: build-debug (add-to-panel 'cosmic-applet-ledger-debug')

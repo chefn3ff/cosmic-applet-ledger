@@ -11,7 +11,62 @@ use std::path::PathBuf;
 
 mod watch_update;
 
-pub const APP_ID: &str = "io.github.mrn3ff.cosmic-applet-ledger";
+pub const APP_ID: &str = "io.github.chefn3ff.cosmic-applet-ledger";
+/// The app ID up to 0.4.0, before the GitHub account was renamed.
+pub const LEGACY_APP_ID: &str = "io.github.mrn3ff.cosmic-applet-ledger";
+
+/// Copies settings saved under the old app ID to the new one on first start
+/// after the rename. It copies rather than moves, so going back to 0.4.0
+/// still finds its settings, and it never touches an existing new folder.
+pub fn migrate_legacy_config() {
+    if std::env::var_os("FLATPAK_ID").is_some() {
+        return;
+    }
+    let Some(base) = dirs::config_dir().map(|dir| dir.join("cosmic")) else {
+        return;
+    };
+    match migrate_legacy_config_in(&base) {
+        Ok(true) => tracing::info!(
+            from = LEGACY_APP_ID,
+            to = APP_ID,
+            "copied settings to the new app ID"
+        ),
+        Ok(false) => {}
+        Err(error) => tracing::warn!(%error, "could not copy settings from the old app ID"),
+    }
+}
+
+fn migrate_legacy_config_in(base: &std::path::Path) -> std::io::Result<bool> {
+    let old = base.join(LEGACY_APP_ID);
+    let new = base.join(APP_ID);
+    if new.exists() || !old.is_dir() {
+        return Ok(false);
+    }
+    // Copy into a temporary sibling and rename it into place, so a crash
+    // mid-copy can never leave a half-filled new folder that blocks a retry.
+    let staging = base.join(format!("{APP_ID}.migrating"));
+    if staging.exists() {
+        std::fs::remove_dir_all(&staging)?;
+    }
+    copy_dir(&old, &staging)?;
+    std::fs::rename(&staging, &new)?;
+    Ok(true)
+}
+
+fn copy_dir(from: &std::path::Path, to: &std::path::Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(to)?;
+    for entry in std::fs::read_dir(from)? {
+        let entry = entry?;
+        let kind = entry.file_type()?;
+        let target = to.join(entry.file_name());
+        if kind.is_dir() {
+            copy_dir(&entry.path(), &target)?;
+        } else if kind.is_file() {
+            std::fs::copy(entry.path(), &target)?;
+        }
+    }
+    Ok(())
+}
 
 #[derive(Debug, Clone, CosmicConfigEntry, Serialize, Deserialize, Eq, PartialEq)]
 #[version = 600]
@@ -1268,6 +1323,39 @@ mod tests {
             "unexpected log_dir: {}",
             p.log_dir.display()
         );
+    }
+
+    #[test]
+    fn legacy_settings_are_copied_once_and_kept() {
+        let base = tempfile::tempdir().unwrap();
+        let old = base.path().join(LEGACY_APP_ID).join("v600");
+        std::fs::create_dir_all(&old).unwrap();
+        std::fs::write(old.join("refresh_interval_seconds"), "900").unwrap();
+
+        assert!(migrate_legacy_config_in(base.path()).unwrap());
+        let new = base.path().join(APP_ID).join("v600");
+        assert_eq!(
+            std::fs::read_to_string(new.join("refresh_interval_seconds")).unwrap(),
+            "900"
+        );
+        // The old folder stays, so 0.4.0 still works after a downgrade.
+        assert!(old.join("refresh_interval_seconds").exists());
+        assert!(!base.path().join(format!("{APP_ID}.migrating")).exists());
+
+        // A second start changes nothing, even if the old settings changed.
+        std::fs::write(old.join("refresh_interval_seconds"), "60").unwrap();
+        assert!(!migrate_legacy_config_in(base.path()).unwrap());
+        assert_eq!(
+            std::fs::read_to_string(new.join("refresh_interval_seconds")).unwrap(),
+            "900"
+        );
+    }
+
+    #[test]
+    fn nothing_to_copy_without_legacy_settings() {
+        let base = tempfile::tempdir().unwrap();
+        assert!(!migrate_legacy_config_in(base.path()).unwrap());
+        assert!(!base.path().join(APP_ID).exists());
     }
 
     #[test]

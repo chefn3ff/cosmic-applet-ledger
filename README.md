@@ -162,7 +162,7 @@ To update, pull and run `just install` again, then `pkill -x cosmic-applet-ledge
 ## Where your data lives
 
 - **Settings, enabled providers and the account list:**
-  `~/.config/cosmic/io.github.mrn3ff.cosmic-applet-ledger/`
+  `~/.config/cosmic/io.github.chefn3ff.cosmic-applet-ledger/`
 
 - **Ledger's copy of each account's credentials:**
   `~/.local/state/cosmic-applet-ledger/<provider>-accounts/`

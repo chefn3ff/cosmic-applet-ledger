@@ -5,9 +5,15 @@ All notable changes to Ledger are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.1] - 2026-11-14
 
 ### Changed
+- App ID is now `io.github.chefn3ff.cosmic-applet-ledger`, matching the
+  GitHub account. On first start Ledger copies your settings from the old
+  `io.github.mrn3ff.cosmic-applet-ledger` folder (the old folder is kept).
+  `just install` removes the old panel entry and files. **If you installed a
+  .deb or .rpm, add Ledger to the panel again after upgrading.**
+- Repository, About and update-check links point at `chefn3ff` directly.
 - README rewritten: what Ledger adds to YapCap, a gallery of every provider
   page, a credit rings section, and a layout that reads well on a phone. All
   screenshots retaken from demo data.

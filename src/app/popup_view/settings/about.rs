@@ -5,7 +5,7 @@ use super::super::{
     component_surface_color, container, fl, widget,
 };
 
-const REPOSITORY_URL: &str = "https://github.com/mrn3ff/cosmic-applet-ledger";
+const REPOSITORY_URL: &str = "https://github.com/chefn3ff/cosmic-applet-ledger";
 
 pub(super) fn about_view(update_status: &UpdateStatus) -> Element<'static, Message> {
     let version = env!("CARGO_PKG_VERSION");

@@ -3,7 +3,7 @@
 use serde::Deserialize;
 
 const DEFAULT_URL: &str =
-    "https://api.github.com/repos/mrn3ff/cosmic-applet-ledger/releases/latest";
+    "https://api.github.com/repos/chefn3ff/cosmic-applet-ledger/releases/latest";
 #[cfg(debug_assertions)]
 const DEBUG_UPDATE_AVAILABLE_ENV: &str = "LEDGER_DEBUG_UPDATE_AVAILABLE";
 const USER_AGENT: &str = concat!("cosmic-applet-ledger/", env!("CARGO_PKG_VERSION"));
@@ -59,7 +59,7 @@ fn debug_update_available_status(value: &str) -> UpdateStatus {
 
     UpdateStatus::UpdateAvailable {
         version: version.to_string(),
-        url: format!("https://github.com/mrn3ff/cosmic-applet-ledger/releases/tag/v{version}"),
+        url: format!("https://github.com/chefn3ff/cosmic-applet-ledger/releases/tag/v{version}"),
     }
 }
 
@@ -171,7 +171,7 @@ mod tests {
             debug_update_available_status("1"),
             UpdateStatus::UpdateAvailable {
                 version: "9.9.9".to_string(),
-                url: "https://github.com/mrn3ff/cosmic-applet-ledger/releases/tag/v9.9.9"
+                url: "https://github.com/chefn3ff/cosmic-applet-ledger/releases/tag/v9.9.9"
                     .to_string(),
             }
         );
@@ -183,7 +183,7 @@ mod tests {
             debug_update_available_status("v0.1.0"),
             UpdateStatus::UpdateAvailable {
                 version: "0.1.0".to_string(),
-                url: "https://github.com/mrn3ff/cosmic-applet-ledger/releases/tag/v0.1.0"
+                url: "https://github.com/chefn3ff/cosmic-applet-ledger/releases/tag/v0.1.0"
                     .to_string(),
             }
         );

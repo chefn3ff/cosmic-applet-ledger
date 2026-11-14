@@ -35,6 +35,7 @@ fn main() -> cosmic::iced::Result {
         "warn,cosmic::theme=off,cosmic_applet_ledger=info"
     };
     let _log_guard = logging::init(default_level).ok();
+    config::migrate_legacy_config();
 
     if running_in_cosmic_panel() {
         cosmic::applet::run::<app::AppModel>(app::LaunchMode::Panel)

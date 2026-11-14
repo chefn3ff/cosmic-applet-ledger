@@ -2,7 +2,7 @@
 Name=Ledger
 Comment=AI usage and credit monitor for COSMIC
 Type=Application
-Icon=io.github.mrn3ff.cosmic-applet-ledger
+Icon=io.github.chefn3ff.cosmic-applet-ledger
 Exec=cosmic-applet-ledger
 Terminal=false
 StartupNotify=true

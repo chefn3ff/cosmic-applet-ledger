@@ -25,7 +25,7 @@ card_bg="27,27,27"
 work="$(mktemp -d)"
 trap 'pkill -f "^${bin}" 2>/dev/null || true; rm -rf "$work"' EXIT
 
-cfg="$work/config/cosmic/io.github.mrn3ff.cosmic-applet-ledger/v600"
+cfg="$work/config/cosmic/io.github.chefn3ff.cosmic-applet-ledger/v600"
 mkdir -p "$cfg" "$work/state" "$work/cache" "$out_dir"
 
 set_cfg() { printf '%s\n' "$2" > "$cfg/$1"; }

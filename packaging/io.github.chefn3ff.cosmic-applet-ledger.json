@@ -1,5 +1,5 @@
 {
-  "id": "io.github.mrn3ff.cosmic-applet-ledger",
+  "id": "io.github.chefn3ff.cosmic-applet-ledger",
   "runtime": "org.freedesktop.Platform",
   "runtime-version": "25.08",
   "base": "com.system76.Cosmic.BaseApp",
@@ -35,15 +35,15 @@
         "cargo --offline fetch --manifest-path Cargo.toml --verbose",
         "cargo --offline build --release --verbose",
         "install -Dm0755 target/release/cosmic-applet-ledger /app/bin/cosmic-applet-ledger",
-        "install -Dm0644 resources/app.desktop /app/share/applications/io.github.mrn3ff.cosmic-applet-ledger.desktop",
-        "install -Dm0644 resources/app.metainfo.xml /app/share/metainfo/io.github.mrn3ff.cosmic-applet-ledger.metainfo.xml",
-        "install -Dm0644 resources/ledger-icon/linux/hicolor/scalable/apps/ledger.svg /app/share/icons/hicolor/scalable/apps/io.github.mrn3ff.cosmic-applet-ledger.svg",
-        "install -Dm0644 resources/ledger-icon/linux/hicolor/symbolic/apps/ledger-symbolic.svg /app/share/icons/hicolor/symbolic/apps/io.github.mrn3ff.cosmic-applet-ledger-symbolic.svg"
+        "install -Dm0644 resources/app.desktop /app/share/applications/io.github.chefn3ff.cosmic-applet-ledger.desktop",
+        "install -Dm0644 resources/app.metainfo.xml /app/share/metainfo/io.github.chefn3ff.cosmic-applet-ledger.metainfo.xml",
+        "install -Dm0644 resources/ledger-icon/linux/hicolor/scalable/apps/ledger.svg /app/share/icons/hicolor/scalable/apps/io.github.chefn3ff.cosmic-applet-ledger.svg",
+        "install -Dm0644 resources/ledger-icon/linux/hicolor/symbolic/apps/ledger-symbolic.svg /app/share/icons/hicolor/symbolic/apps/io.github.chefn3ff.cosmic-applet-ledger-symbolic.svg"
       ],
       "sources": [
         {
           "type": "git",
-          "url": "https://github.com/mrn3ff/cosmic-applet-ledger.git",
+          "url": "https://github.com/chefn3ff/cosmic-applet-ledger.git",
           "branch": "main"
         },
         "cargo-sources.json"

@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github.mrn3ff.cosmic-applet-ledger</id>
+  <id>io.github.chefn3ff.cosmic-applet-ledger</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MPL-2.0</project_license>
   <project_group>COSMIC</project_group>
-  <developer id="io.github.mrn3ff">
+  <developer id="io.github.chefn3ff">
     <name>netw0rkn1nja</name>
   </developer>
   <developer_name>netw0rkn1nja</developer_name>
@@ -25,10 +25,10 @@
       <li>Native Pop!_OS COSMIC theme integration</li>
     </ul>
   </description>
-  <url type="homepage">https://github.com/mrn3ff/cosmic-applet-ledger</url>
-  <url type="bugtracker">https://github.com/mrn3ff/cosmic-applet-ledger/issues</url>
-  <url type="vcs-browser">https://github.com/mrn3ff/cosmic-applet-ledger</url>
-  <launchable type="desktop-id">io.github.mrn3ff.cosmic-applet-ledger.desktop</launchable>
+  <url type="homepage">https://github.com/chefn3ff/cosmic-applet-ledger</url>
+  <url type="bugtracker">https://github.com/chefn3ff/cosmic-applet-ledger/issues</url>
+  <url type="vcs-browser">https://github.com/chefn3ff/cosmic-applet-ledger</url>
+  <launchable type="desktop-id">io.github.chefn3ff.cosmic-applet-ledger.desktop</launchable>
   <provides>
     <id>com.system76.CosmicApplet</id>
     <binary>cosmic-applet-ledger</binary>
@@ -60,6 +60,11 @@
     <keyword>Applet</keyword>
   </keywords>
   <releases>
+    <release type="stable" version="0.4.1" date="2026-11-14">
+      <description>
+        <p>New app ID matching the GitHub account, with settings copied over automatically. Rewritten README with screenshots of every provider.</p>
+      </description>
+    </release>
     <release type="stable" version="0.4.0" date="2026-11-14">
       <description>
         <p>Adds Fish Audio API credit with an optional credits ring; with both rings on, click the ring to swap between ElevenLabs and Fish. New Switch Provider icon, reordered preferences, clearer ElevenLabs key errors, atomic credential writes, and OpenRouter settings now sync across processes.</p>

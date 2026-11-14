@@ -1,14 +1,14 @@
 [package]
 name = "cosmic-applet-ledger"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2024"
 license = "MPL-2.0"
 description = "COSMIC panel applet tracking AI usage and credits"
-repository = "https://github.com/mrn3ff/cosmic-applet-ledger"
+repository = "https://github.com/chefn3ff/cosmic-applet-ledger"
 
 [package.metadata.deb]
 name = "cosmic-applet-ledger"
-maintainer = "netw0rkn1nja <mrn3ff@users.noreply.github.com>"
+maintainer = "chefn3ff <chefn3ff@users.noreply.github.com>"
 depends = "$auto, libxkbcommon0, libwayland-client0, libfontconfig1"
 # Releases up to 0.2.0 shipped as "ledger", which collides with the
 # unrelated Debian/Ubuntu `ledger` accounting package (3.x). Take over
@@ -19,10 +19,10 @@ section = "utils"
 priority = "optional"
 assets = [
     ["target/release/cosmic-applet-ledger", "usr/bin/", "755"],
-    ["resources/app.desktop", "usr/share/applications/io.github.mrn3ff.cosmic-applet-ledger.desktop", "644"],
-    ["resources/app.metainfo.xml", "usr/share/metainfo/io.github.mrn3ff.cosmic-applet-ledger.metainfo.xml", "644"],
-    ["resources/ledger-icon/linux/hicolor/scalable/apps/ledger.svg", "usr/share/icons/hicolor/scalable/apps/io.github.mrn3ff.cosmic-applet-ledger.svg", "644"],
-    ["resources/ledger-icon/linux/hicolor/symbolic/apps/ledger-symbolic.svg", "usr/share/icons/hicolor/symbolic/apps/io.github.mrn3ff.cosmic-applet-ledger-symbolic.svg", "644"],
+    ["resources/app.desktop", "usr/share/applications/io.github.chefn3ff.cosmic-applet-ledger.desktop", "644"],
+    ["resources/app.metainfo.xml", "usr/share/metainfo/io.github.chefn3ff.cosmic-applet-ledger.metainfo.xml", "644"],
+    ["resources/ledger-icon/linux/hicolor/scalable/apps/ledger.svg", "usr/share/icons/hicolor/scalable/apps/io.github.chefn3ff.cosmic-applet-ledger.svg", "644"],
+    ["resources/ledger-icon/linux/hicolor/symbolic/apps/ledger-symbolic.svg", "usr/share/icons/hicolor/symbolic/apps/io.github.chefn3ff.cosmic-applet-ledger-symbolic.svg", "644"],
     ["README.md", "usr/share/doc/cosmic-applet-ledger/README.md", "644"],
 ]
 extended-description = """
@@ -35,10 +35,10 @@ summary = "COSMIC panel applet for AI coding usage tracking"
 license = "MPL-2.0"
 assets = [
     { source = "target/release/cosmic-applet-ledger", dest = "/usr/bin/cosmic-applet-ledger", mode = "755" },
-    { source = "resources/app.desktop", dest = "/usr/share/applications/io.github.mrn3ff.cosmic-applet-ledger.desktop", mode = "644" },
-    { source = "resources/app.metainfo.xml", dest = "/usr/share/metainfo/io.github.mrn3ff.cosmic-applet-ledger.metainfo.xml", mode = "644" },
-    { source = "resources/ledger-icon/linux/hicolor/scalable/apps/ledger.svg", dest = "/usr/share/icons/hicolor/scalable/apps/io.github.mrn3ff.cosmic-applet-ledger.svg", mode = "644" },
-    { source = "resources/ledger-icon/linux/hicolor/symbolic/apps/ledger-symbolic.svg", dest = "/usr/share/icons/hicolor/symbolic/apps/io.github.mrn3ff.cosmic-applet-ledger-symbolic.svg", mode = "644" },
+    { source = "resources/app.desktop", dest = "/usr/share/applications/io.github.chefn3ff.cosmic-applet-ledger.desktop", mode = "644" },
+    { source = "resources/app.metainfo.xml", dest = "/usr/share/metainfo/io.github.chefn3ff.cosmic-applet-ledger.metainfo.xml", mode = "644" },
+    { source = "resources/ledger-icon/linux/hicolor/scalable/apps/ledger.svg", dest = "/usr/share/icons/hicolor/scalable/apps/io.github.chefn3ff.cosmic-applet-ledger.svg", mode = "644" },
+    { source = "resources/ledger-icon/linux/hicolor/symbolic/apps/ledger-symbolic.svg", dest = "/usr/share/icons/hicolor/symbolic/apps/io.github.chefn3ff.cosmic-applet-ledger-symbolic.svg", mode = "644" },
     { source = "README.md", dest = "/usr/share/doc/cosmic-applet-ledger/README.md", mode = "644", doc = true },
 ]
 
