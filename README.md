@@ -10,8 +10,8 @@
 
 **A flat, minimalist COSMIC panel applet for tracking AI usage, rate limits, and tokens across coding agents and providers.**
 
-[![CI](https://github.com/mrn3ff/cosmic-applet-ledger/actions/workflows/ci.yml/badge.svg)](https://github.com/mrn3ff/cosmic-applet-ledger/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/mrn3ff/cosmic-applet-ledger)](https://github.com/mrn3ff/cosmic-applet-ledger/releases/latest)
+[![CI](https://github.com/chefn3ff/cosmic-applet-ledger/actions/workflows/ci.yml/badge.svg)](https://github.com/chefn3ff/cosmic-applet-ledger/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/chefn3ff/cosmic-applet-ledger)](https://github.com/chefn3ff/cosmic-applet-ledger/releases/latest)
 [![License: MPL-2.0](https://img.shields.io/badge/license-MPL--2.0-blue)](LICENSE)
 
 *Forked from [YapCap](https://github.com/TopiCsarno/yapcap) by Topi Csarno, redesigned with a minimalist aesthetic inspired by Omarchy.*
@@ -57,7 +57,7 @@ API-key forms for Kimi, Minimax, OpenCode Go and Z.AI can be prefilled from Open
 
 ### From a release
 
-Download a package from the [latest release](https://github.com/mrn3ff/cosmic-applet-ledger/releases/latest).
+Download a package from the [latest release](https://github.com/chefn3ff/cosmic-applet-ledger/releases/latest).
 
 ```bash
 # Debian, Ubuntu, Pop!_OS
@@ -83,7 +83,7 @@ sudo apt install -y build-essential pkg-config just libssl-dev \
 Then build and install. `just install` installs under `~/.local` and adds Ledger to your panel:
 
 ```bash
-git clone https://github.com/mrn3ff/cosmic-applet-ledger
+git clone https://github.com/chefn3ff/cosmic-applet-ledger
 cd cosmic-applet-ledger
 just install
 ```
@@ -145,7 +145,7 @@ Ledger also reads, but never changes:
 - `~/.local/share/opencode/auth.json` — only to prefill account forms
 - The Cursor IDE's local sign-in, when you scan for Cursor accounts
 
-Logs never contain credentials or tokens. If you find one that does, please [open an issue](https://github.com/mrn3ff/cosmic-applet-ledger/issues).
+Logs never contain credentials or tokens. If you find one that does, please [open an issue](https://github.com/chefn3ff/cosmic-applet-ledger/issues).
 
 ## Development
 
