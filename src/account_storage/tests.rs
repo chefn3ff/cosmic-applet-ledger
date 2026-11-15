@@ -528,3 +528,39 @@ fn credential_writes_replace_the_file_atomically() {
         "temp files left behind: {leftovers:?}"
     );
 }
+
+/// C29: when a token save fails right after a refresh-token rotation, the new
+/// tokens are held, returned by `load_tokens`, and saved once the disk works.
+#[cfg(unix)]
+#[test]
+fn rotated_tokens_survive_a_failed_save() {
+    let storage = ProviderAccountStorage::new(test_dir("unsaved-tokens"));
+    let stored = storage
+        .create_account(NewProviderAccount {
+            provider: ProviderId::Claude,
+            email: "person@example.com".to_string(),
+            provider_account_id: None,
+            organization_id: None,
+            organization_name: None,
+            tokens: tokens(),
+            snapshot: None,
+        })
+        .unwrap();
+    let account_id = stored.account_ref.account_id.clone();
+    let mut rotated = tokens();
+    rotated.refresh_token = "rotated-refresh-token".to_string();
+
+    // A directory where tokens.json belongs makes every save fail (the
+    // storage resets folder modes itself, so a read-only folder would not).
+    let tokens_path = stored.account_dir.join(TOKENS_FILE);
+    fs::remove_file(&tokens_path).unwrap();
+    fs::create_dir(&tokens_path).unwrap();
+    assert!(storage.save_tokens(&account_id, &rotated).is_err());
+    assert_eq!(storage.load_tokens(&account_id).unwrap(), rotated);
+
+    // Once the obstruction is gone, the next read saves them to disk.
+    fs::remove_dir(&tokens_path).unwrap();
+    assert_eq!(storage.load_tokens(&account_id).unwrap(), rotated);
+    let on_disk: ProviderAccountTokens = read_json(&stored.account_dir.join(TOKENS_FILE)).unwrap();
+    assert_eq!(on_disk.refresh_token, "rotated-refresh-token");
+}

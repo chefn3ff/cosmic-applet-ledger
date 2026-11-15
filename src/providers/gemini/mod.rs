@@ -81,6 +81,8 @@ async fn fetch_at(
             oauth::refresh_access_token_at(client, token_endpoint, &tokens.refresh_token, now)
                 .await?;
         tokens = refreshed_tokens(&refreshed);
+        // A failed save is logged and the tokens are held by the storage until a
+        // later save works, so a rotated refresh token is never lost.
         let _ = storage.save_tokens(account_id, &tokens);
     }
 
@@ -212,6 +214,8 @@ async fn reactive_refresh(
         oauth::refresh_access_token_at(client, token_endpoint, &previous.refresh_token, Utc::now())
             .await?;
     let new_tokens = refreshed_tokens(&refreshed);
+    // A failed save is logged and the tokens are held by the storage until a
+    // later save works, so a rotated refresh token is never lost.
     let _ = storage.save_tokens(account_id, &new_tokens);
     Ok(new_tokens)
 }

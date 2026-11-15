@@ -142,6 +142,8 @@ async fn fetch_at(
         {
             Ok(refreshed) => {
                 tokens = refreshed_tokens(&refreshed);
+                // A failed save is logged and the tokens are held by the storage until a
+                // later save works, so a rotated refresh token is never lost.
                 let _ = storage.save_tokens(account_id, &tokens);
                 if let Some(meta) = refreshed_metadata(account_id, &refreshed, &storage) {
                     let _ = write_refreshed_metadata(&storage, account_id, &meta);
@@ -166,6 +168,8 @@ async fn fetch_at(
             )
             .await?;
             let new_tokens = refreshed_tokens(&refreshed);
+            // A failed save is logged and the tokens are held by the storage until a
+            // later save works, so a rotated refresh token is never lost.
             let _ = storage.save_tokens(account_id, &new_tokens);
             if let Some(meta) = refreshed_metadata(account_id, &refreshed, &storage) {
                 let _ = write_refreshed_metadata(&storage, account_id, &meta);

@@ -76,6 +76,25 @@ pub struct ProviderAccountStorage {
     root: PathBuf,
 }
 
+/// Tokens whose save failed, keyed by account folder. A refresh may already
+/// have rotated the refresh token, which makes the copy on disk useless, so
+/// the new tokens are held here: `load_tokens` returns them and retries the
+/// save until it succeeds, instead of the new token being lost.
+fn unsaved_tokens()
+-> &'static std::sync::Mutex<std::collections::HashMap<PathBuf, ProviderAccountTokens>> {
+    static UNSAVED: std::sync::OnceLock<
+        std::sync::Mutex<std::collections::HashMap<PathBuf, ProviderAccountTokens>>,
+    > = std::sync::OnceLock::new();
+    UNSAVED.get_or_init(Default::default)
+}
+
+fn lock_unsaved_tokens()
+-> std::sync::MutexGuard<'static, std::collections::HashMap<PathBuf, ProviderAccountTokens>> {
+    unsaved_tokens()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 impl ProviderAccountStorage {
     #[must_use]
     pub fn new(root: impl Into<PathBuf>) -> Self {
@@ -211,6 +230,19 @@ impl ProviderAccountStorage {
         &self,
         account_id: &str,
     ) -> Result<ProviderAccountTokens, AccountStorageError> {
+        let key = self.root.join(account_id);
+        let held = lock_unsaved_tokens().get(&key).cloned();
+        if let Some(tokens) = held {
+            // Newer than the file on disk: use them, and try the save again.
+            if self
+                .write_json_file(account_id, TOKENS_FILE, &tokens)
+                .is_ok()
+            {
+                lock_unsaved_tokens().remove(&key);
+                tracing::info!(account_id, "saved tokens held after an earlier failed save");
+            }
+            return Ok(tokens);
+        }
         self.read_json_file(account_id, TOKENS_FILE)
     }
 
@@ -243,7 +275,22 @@ impl ProviderAccountStorage {
         account_id: &str,
         tokens: &ProviderAccountTokens,
     ) -> Result<(), AccountStorageError> {
-        self.write_json_file(account_id, TOKENS_FILE, tokens)
+        let key = self.root.join(account_id);
+        match self.write_json_file(account_id, TOKENS_FILE, tokens) {
+            Ok(()) => {
+                lock_unsaved_tokens().remove(&key);
+                Ok(())
+            }
+            Err(error) => {
+                tracing::error!(
+                    account_id,
+                    error = %error,
+                    "could not save refreshed tokens; holding them in memory and retrying"
+                );
+                lock_unsaved_tokens().insert(key, tokens.clone());
+                Err(error)
+            }
+        }
     }
 
     /// # Errors
@@ -267,6 +314,7 @@ impl ProviderAccountStorage {
         for file_name in [METADATA_FILE, TOKENS_FILE, SNAPSHOT_FILE, "api_key.txt"] {
             checked_account_file_path(&account_dir, file_name)?;
         }
+        lock_unsaved_tokens().remove(&self.root.join(account_id));
         fs::remove_dir_all(&account_dir).map_err(|source| AccountStorageError::DeleteDir {
             path: account_dir,
             source,

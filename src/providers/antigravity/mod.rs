@@ -252,6 +252,8 @@ async fn reactive_refresh(
         scope: refreshed.scope,
         token_id: None,
     };
+    // A failed save is logged and the tokens are held by the storage until a
+    // later save works, so a rotated refresh token is never lost.
     let _ = storage.save_tokens(account_id, &new_tokens);
     Ok(new_tokens)
 }
