@@ -402,6 +402,20 @@ impl AppModel {
         Task::none()
     }
 
+    pub(super) fn set_provider_icon_color(&mut self, enabled: bool) -> Task<Message> {
+        let previous = self.config.provider_icon_color;
+        self.write_config(|new_config| {
+            new_config.provider_icon_color = enabled;
+        });
+        tracing::info!(
+            process_id = %self.process_info.id,
+            previous,
+            enabled,
+            "provider icon color setting changed"
+        );
+        Task::none()
+    }
+
     pub(super) fn set_fish_ring_enabled(&mut self, enabled: bool) -> Task<Message> {
         let previous = self.config.fish_ring_enabled;
         self.write_config(|new_config| {

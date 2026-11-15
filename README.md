@@ -44,17 +44,17 @@ Full history: [CHANGELOG.md](CHANGELOG.md).
 
 | Provider | Sign in with | Shows |
 | --- | --- | --- |
-| <img src="resources/providers/antigravity-color.svg" alt="" width="16" height="16"> Antigravity | Google (browser) | 5-hour and weekly model-group quota |
-| <img src="resources/providers/claude-color.svg" alt="" width="16" height="16"> Claude | Claude (browser) | Session and weekly limits, tokens by day and model |
+| <img src="resources/readme/providers/antigravity.png" alt="" width="16" height="16"> Antigravity | Google (browser) | 5-hour and weekly model-group quota |
+| <img src="resources/readme/providers/claude.png" alt="" width="16" height="16"> Claude | Claude (browser) | Session and weekly limits, tokens by day and model |
 | <img src="resources/readme/providers/codex.svg" alt="" width="16" height="16"> Codex | OpenAI (browser) or OpenCode import | 5-hour and weekly limits |
 | <img src="resources/readme/providers/copilot.svg" alt="" width="16" height="16"> Copilot | GitHub device login or OpenCode import | Chat and completions, or premium requests |
 | <img src="resources/readme/providers/cursor.svg" alt="" width="16" height="16"> Cursor | The Cursor IDE's local sign-in | Total and API usage |
 | <img src="resources/readme/providers/elevenlabs.svg" alt="" width="16" height="16"> ElevenLabs | API key | Monthly credits, reset time, credits by key |
 | <img src="resources/readme/providers/fish.svg" alt="" width="16" height="16"> Fish Audio | API key | API credit left of what you have topped up |
-| <img src="resources/providers/gemini-color.svg" alt="" width="16" height="16"> Gemini | Google (browser), enable manually | Pro, Flash and Lite quota |
+| <img src="resources/readme/providers/gemini.png" alt="" width="16" height="16"> Gemini | Google (browser), enable manually | Pro, Flash and Lite quota |
 | <img src="resources/readme/providers/grok.svg" alt="" width="16" height="16"> Grok | xAI (browser) or Grok CLI import | Weekly credit usage |
 | <img src="resources/readme/providers/kimi.svg" alt="" width="16" height="16"> Kimi | API key | Weekly and rate-limit windows |
-| <img src="resources/providers/minimax.svg" alt="" width="16" height="16"> Minimax | API key | 5-hour and weekly windows |
+| <img src="resources/readme/providers/minimax.png" alt="" width="16" height="16"> Minimax | API key | 5-hour and weekly windows |
 | <img src="resources/readme/providers/opencode-go.svg" alt="" width="16" height="16"> OpenCode Go | API key | 5-hour and weekly windows |
 | <img src="resources/readme/providers/openrouter.svg" alt="" width="16" height="16"> OpenRouter | API key | Daily and weekly spend, balance, tokens by day and model |
 | <img src="resources/readme/providers/zai.svg" alt="" width="16" height="16"> Z.AI Coding Plan | API key | 5-hour and weekly windows |
@@ -157,7 +157,7 @@ To update, pull and run `just install` again, then `pkill -x cosmic-applet-ledge
 
 - **Panel Status Bars**: usage bars in the panel, or just the Ledger icon.
 
-- **OPTIONAL**: the ElevenLabs and Fish credit rings. Each row appears once its provider is on.
+- **OPTIONAL**: **Color Provider Icons** shows logos in their brand colors instead of the default black and white. The ElevenLabs and Fish credit rings follow; each appears once its provider is on.
 
 ## Where your data lives
 

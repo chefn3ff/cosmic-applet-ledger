@@ -5,6 +5,17 @@ All notable changes to Ledger are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- Provider logos are black and white by default, following the theme like
+  the rest of the applet, in the panel and the popup alike.
+
+### Added
+- **Color Provider Icons** preference (first under OPTIONAL) brings back each
+  provider's brand colors.
+- `LEDGER_SHOT_ONLY` re-shoots selected README screenshots.
+
 ## [0.4.1] - 2026-11-14
 
 ### Changed

@@ -2,6 +2,16 @@
 
 use crate::model::ProviderId;
 use cosmic::widget::icon::{self, Handle};
+use std::sync::atomic::{AtomicBool, Ordering};
+
+/// Whether provider logos keep their brand colours. The view sets it from
+/// the config before drawing, so every icon call site follows the setting
+/// without passing the config around.
+static COLOR_PROVIDER_ICONS: AtomicBool = AtomicBool::new(false);
+
+pub fn set_color_provider_icons(enabled: bool) {
+    COLOR_PROVIDER_ICONS.store(enabled, Ordering::Relaxed);
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProviderIconVariant {
@@ -88,7 +98,11 @@ pub fn provider_icon_handle(provider: ProviderId, variant: ProviderIconVariant) 
         }
     };
 
-    icon::from_svg_bytes(bytes)
+    let mut handle = icon::from_svg_bytes(bytes);
+    // Symbolic icons are tinted with the theme's text colour, which turns
+    // every logo, colour ones included, into a black or white silhouette.
+    handle.symbolic = !COLOR_PROVIDER_ICONS.load(Ordering::Relaxed);
+    handle
 }
 
 /// Two stacked arrows pointing opposite ways: the Switch Provider button.
@@ -130,5 +144,19 @@ pub fn provider_icon_variant() -> ProviderIconVariant {
         ProviderIconVariant::Reversed
     } else {
         ProviderIconVariant::Default
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn provider_icons_are_black_and_white_unless_color_is_on() {
+        set_color_provider_icons(false);
+        assert!(provider_icon_handle(ProviderId::Claude, ProviderIconVariant::Default).symbolic);
+        set_color_provider_icons(true);
+        assert!(!provider_icon_handle(ProviderId::Claude, ProviderIconVariant::Default).symbolic);
+        set_color_provider_icons(false);
     }
 }

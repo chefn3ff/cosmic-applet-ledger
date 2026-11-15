@@ -11,6 +11,7 @@
 # Keep other windows from covering the centre of the screen while it runs.
 #
 # Usage: just screenshots   (or: scripts/screenshots.sh [out-dir])
+# Re-shoot only some pages: LEDGER_SHOT_ONLY="accounts ring-fish" just screenshots
 
 set -euo pipefail
 
@@ -93,6 +94,9 @@ card_height() {
 
 shoot() {
     local name="$1" page="$2" shot="" box="" attempt x y w h
+    if [[ -n "${LEDGER_SHOT_ONLY:-}" && " ${LEDGER_SHOT_ONLY} " != *" $name "* ]]; then
+        return 0
+    fi
     for attempt in 1 2 3 4 5; do
         pkill -f "^${bin}" 2>/dev/null || true
         sleep 1

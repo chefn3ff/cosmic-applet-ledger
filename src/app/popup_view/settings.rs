@@ -405,12 +405,17 @@ pub(super) fn settings_view(
 /// while its provider is enabled.
 fn optional_feature_rows(state: &AppState, config: &Config) -> Vec<Element<'static, Message>> {
     let enabled = |provider| state.provider(provider).is_some_and(|entry| entry.enabled);
-    let mut rows = Vec::new();
+    let mut rows = vec![toggle_row(
+        "Color Provider Icons",
+        "Show provider logos in their brand colors",
+        config.provider_icon_color,
+        Message::SetProviderIconColor,
+    )];
     if enabled(ProviderId::ElevenLabs) {
         rows.push(elevenlabs_ring_row(config.elevenlabs_ring_enabled));
     }
     if enabled(ProviderId::Fish) {
-        rows.push(credit_ring_row(
+        rows.push(toggle_row(
             "Fish Credits Ring",
             "Show Fish Audio API credit on every provider",
             config.fish_ring_enabled,
@@ -422,7 +427,7 @@ fn optional_feature_rows(state: &AppState, config: &Config) -> Vec<Element<'stat
 
 /// PREFERENCES row for the ElevenLabs credits ring in other providers' headers.
 fn elevenlabs_ring_row(enabled: bool) -> Element<'static, Message> {
-    credit_ring_row(
+    toggle_row(
         "ElevenLabs Credits Ring",
         "Show ElevenLabs credits on every provider",
         enabled,
@@ -430,8 +435,8 @@ fn elevenlabs_ring_row(enabled: bool) -> Element<'static, Message> {
     )
 }
 
-/// An OFF/ON row for one credit ring in other providers' headers.
-fn credit_ring_row(
+/// An OFF/ON preference row with a title and a one-line description.
+fn toggle_row(
     title: &'static str,
     subtitle: &'static str,
     enabled: bool,

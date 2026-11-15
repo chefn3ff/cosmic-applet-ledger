@@ -163,6 +163,10 @@ pub struct Config {
     /// Shows the Fish Audio API credit ring in every other provider's header.
     #[serde(default)]
     pub fish_ring_enabled: bool,
+    /// Draws provider logos in their brand colours. Off by default: logos
+    /// follow the theme in black or white, matching the rest of the applet.
+    #[serde(default)]
+    pub provider_icon_color: bool,
     /// Which credit ring the header shows when both rings are on. Clicking
     /// the ring switches it to the other service.
     #[serde(default = "default_header_ring_provider")]
@@ -223,6 +227,7 @@ impl Default for Config {
             fish_managed_accounts: Vec::new(),
             elevenlabs_ring_enabled: false,
             fish_ring_enabled: false,
+            provider_icon_color: false,
             header_ring_provider: default_header_ring_provider(),
             log_level: "info".to_string(),
         }
@@ -724,6 +729,7 @@ pub fn write_changed_config_entries(
         fish_managed_accounts,
         elevenlabs_ring_enabled,
         fish_ring_enabled,
+        provider_icon_color,
         header_ring_provider,
         log_level,
     } = new;
@@ -786,6 +792,7 @@ pub fn write_changed_config_entries(
     set_changed!(fish_managed_accounts);
     set_changed!(elevenlabs_ring_enabled);
     set_changed!(fish_ring_enabled);
+    set_changed!(provider_icon_color);
     set_changed!(header_ring_provider);
     set_changed!(log_level);
 

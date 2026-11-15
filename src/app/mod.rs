@@ -224,6 +224,7 @@ pub enum Message {
     SetUsageAmountFormat(UsageAmountFormat),
     SetElevenLabsRingEnabled(bool),
     SetFishRingEnabled(bool),
+    SetProviderIconColor(bool),
     /// Header credit ring clicked: show the other service's ring.
     SwitchHeaderRing,
     SetPanelIconStyle(PanelIconStyle),
@@ -399,6 +400,7 @@ impl cosmic::Application for AppModel {
     }
 
     fn view(&self) -> Element<'_, Self::Message> {
+        provider_assets::set_color_provider_icons(self.config.provider_icon_color);
         let indicator = if panel_fallback_active(&self.state) {
             applet_fallback_indicator(&self.core)
         } else {
@@ -425,6 +427,7 @@ impl cosmic::Application for AppModel {
     }
 
     fn view_window(&self, _id: Id) -> Element<'_, Self::Message> {
+        provider_assets::set_color_provider_icons(self.config.provider_icon_color);
         let content = popup_view::popup_content(
             &self.state,
             &self.config,
@@ -590,6 +593,9 @@ impl AppModel {
             }
             Message::SetFishRingEnabled(enabled) => {
                 return Some(self.set_fish_ring_enabled(enabled));
+            }
+            Message::SetProviderIconColor(enabled) => {
+                return Some(self.set_provider_icon_color(enabled));
             }
             Message::SwitchHeaderRing => {
                 return Some(self.switch_header_ring());
