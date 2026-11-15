@@ -1615,7 +1615,9 @@ async fn oauth_callback_exchanges_code_and_sends_success_page() {
 }
 
 #[tokio::test]
-async fn oauth_callback_rejects_state_mismatch() {
+/// C30: a wrong `state` (a stale tab, another local process) is answered with
+/// 400 and skipped; it must not end the sign-in.
+async fn oauth_callback_skips_state_mismatch_and_keeps_waiting() {
     let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
         .await
         .unwrap();
@@ -1636,7 +1638,7 @@ async fn oauth_callback_rejects_state_mismatch() {
 
     let (mut server_stream, _) = listener.accept().await.unwrap();
     let client = reqwest::Client::new();
-    let err = super::login::handle_callback(
+    let outcome = super::login::handle_callback(
         &mut server_stream,
         &client,
         "http://127.0.0.1:9/token",
@@ -1644,10 +1646,12 @@ async fn oauth_callback_rejects_state_mismatch() {
         "my-verifier",
         "expected-state",
     )
-    .await
-    .unwrap_err();
+    .await;
 
-    assert!(err.contains("state nonce did not match"));
+    assert!(
+        matches!(outcome, Ok(None)),
+        "expected skip, got {outcome:?}"
+    );
     let response_text = client_task.await.unwrap();
     assert!(response_text.contains("HTTP/1.1 400 Bad Request"));
 }

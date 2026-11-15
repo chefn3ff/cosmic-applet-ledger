@@ -7,7 +7,7 @@ use std::time::Duration;
 use chrono::Utc;
 use cosmic::iced::Task;
 use cosmic::iced::futures::SinkExt;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 
 use super::account::{self, find_matching_account, new_account_id, normalized_email};
@@ -267,21 +267,21 @@ pub(crate) async fn handle_callback(
 ) -> Result<Option<GrokTokenResponse>, String> {
     let request = read_http_request(stream).await?;
     let Some(target) = request_target(&request) else {
-        write_response(stream, 400, "text/plain; charset=utf-8", "Bad Request").await?;
+        let _ = write_response(stream, 400, "text/plain; charset=utf-8", "Bad Request").await;
         return Ok(None);
     };
     let Some((path, query)) = target.split_once('?') else {
-        write_response(stream, 404, "text/plain; charset=utf-8", "Not Found").await?;
+        let _ = write_response(stream, 404, "text/plain; charset=utf-8", "Not Found").await;
         return Ok(None);
     };
     if path != "/callback" {
-        write_response(stream, 404, "text/plain; charset=utf-8", "Not Found").await?;
+        let _ = write_response(stream, 404, "text/plain; charset=utf-8", "Not Found").await;
         return Ok(None);
     }
     let params = parse_query(query);
     if params.get("state").map(String::as_str) != Some(expected_state) {
-        write_response(stream, 400, "text/plain; charset=utf-8", "State mismatch").await?;
-        return Err("Grok OAuth state nonce did not match".to_string());
+        let _ = write_response(stream, 400, "text/plain; charset=utf-8", "State mismatch").await;
+        return Ok(None);
     }
     if let Some(error) = params.get("error").filter(|error| !error.is_empty()) {
         write_response(
@@ -307,12 +307,8 @@ pub(crate) async fn handle_callback(
 }
 
 async fn read_http_request(stream: &mut TcpStream) -> Result<String, String> {
-    let mut buffer = vec![0; 8192];
-    let bytes = stream
-        .read(&mut buffer)
-        .await
-        .map_err(|error| format!("failed to read Grok OAuth callback: {error}"))?;
-    Ok(String::from_utf8_lossy(&buffer[..bytes]).to_string())
+    // Bounded by time and size; a bad connection reads as empty and is skipped.
+    Ok(crate::providers::oauth_callback::read_http_request(stream).await)
 }
 
 fn request_target(request: &str) -> Option<&str> {

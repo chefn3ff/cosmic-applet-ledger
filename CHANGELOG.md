@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   provider's brand colors.
 - `LEDGER_SHOT_ONLY` re-shoots selected README screenshots.
 
+### Fixed
+- A refreshed token whose save fails (disk full, permissions) is kept in
+  memory and saved on the next read, so a rotated refresh token is never lost.
+- Sign-in callbacks: one byte-safe decoder replaces four copies that could
+  panic on unusual input.
+- Codex, Gemini, Antigravity and Grok sign-in listeners now time out a silent
+  connection after 10 seconds, give up after 5 minutes, read requests split
+  across packets, and skip a stray request or a wrong `state` instead of
+  ending the sign-in.
+
 ## [0.4.1] - 2026-11-14
 
 ### Changed

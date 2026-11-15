@@ -14,6 +14,7 @@ pub mod grok;
 pub mod interface;
 pub mod kimi;
 pub mod minimax;
+pub mod oauth_callback;
 pub mod opencode_auth;
 pub mod opencode_go;
 pub mod openrouter;

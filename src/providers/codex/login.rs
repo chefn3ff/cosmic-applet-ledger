@@ -17,7 +17,7 @@ use cosmic::iced::Task;
 use cosmic::iced::futures::SinkExt;
 #[cfg(test)]
 use std::path::PathBuf;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 
 #[derive(Debug, Clone)]
@@ -180,11 +180,11 @@ async fn run_oauth_flow(
     send_login_url(flow_id, url.clone(), output).await;
     open_browser(&url);
 
+    let deadline = crate::providers::oauth_callback::deadline();
+
     loop {
-        let (mut stream, _) = listener
-            .accept()
-            .await
-            .map_err(|error| format!("failed to receive Codex OAuth callback: {error}"))?;
+        let mut stream =
+            crate::providers::oauth_callback::accept_until(&listener, deadline, "Codex").await?;
         if let Some(auth) = handle_callback(
             &mut stream,
             token_endpoint,
@@ -222,20 +222,20 @@ async fn handle_callback(
 ) -> Result<Option<CodexAuth>, String> {
     let request = read_http_request(stream).await?;
     let Some(target) = request_target(&request) else {
-        write_response(stream, 400, "Bad Request").await?;
+        let _ = write_response(stream, 400, "Bad Request").await;
         return Ok(None);
     };
     let Some((path, query)) = target.split_once('?') else {
-        write_response(stream, 404, "Not Found").await?;
+        let _ = write_response(stream, 404, "Not Found").await;
         return Ok(None);
     };
     if path != "/auth/callback" {
-        write_response(stream, 404, "Not Found").await?;
+        let _ = write_response(stream, 404, "Not Found").await;
         return Ok(None);
     }
     let params = parse_query(query);
     if params.get("state").map(String::as_str) != Some(expected_state) {
-        write_response(stream, 400, "State mismatch").await?;
+        let _ = write_response(stream, 400, "State mismatch").await;
         return Ok(None);
     }
     if let Some(error) = params.get("error").filter(|error| !error.is_empty()) {
@@ -265,12 +265,8 @@ async fn handle_callback(
 }
 
 async fn read_http_request(stream: &mut TcpStream) -> Result<String, String> {
-    let mut buffer = vec![0; 8192];
-    let bytes = stream
-        .read(&mut buffer)
-        .await
-        .map_err(|error| format!("failed to read Codex OAuth callback: {error}"))?;
-    Ok(String::from_utf8_lossy(&buffer[..bytes]).to_string())
+    // Bounded by time and size; a bad connection reads as empty and is skipped.
+    Ok(crate::providers::oauth_callback::read_http_request(stream).await)
 }
 
 fn request_target(request: &str) -> Option<&str> {
