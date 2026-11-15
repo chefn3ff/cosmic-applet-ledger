@@ -1993,3 +1993,65 @@ async fn run_login_inner_executes_oauth_loopback_flow() {
     assert_eq!(tokens.access_token, "login-access-tok");
     assert_eq!(tokens.refresh_token, "login-refresh-tok");
 }
+
+#[tokio::test]
+async fn pre_060_import_sharing_the_cli_refresh_token_stops_refreshing() {
+    use crate::account_storage::ProviderAccountStorage;
+    use chrono::{Duration, Utc};
+
+    let temp = tempfile::tempdir().unwrap();
+    let storage = ProviderAccountStorage::new(temp.path());
+    // An old import: Ledger holds the very refresh token the CLI holds.
+    let (account_id, account_dir) = setup_test_account(
+        &storage,
+        Utc::now() - Duration::hours(1),
+        "cli-refresh-token",
+    );
+    let host = write_host_auth(temp.path(), "cli-fresh-access", "usr-stored");
+
+    // Only billing is mocked: a call to the token endpoint fails the test.
+    let (base_url, handle) = mock_server(vec![billing_ok()]).await;
+    super::fetch_with_host(
+        &reqwest::Client::new(),
+        &account_id,
+        account_dir,
+        &format!("{base_url}/v1/billing?format=credits"),
+        &format!("{base_url}/oauth2/token"),
+        Some(&host),
+    )
+    .await
+    .unwrap();
+
+    let requests = handle.await.unwrap();
+    assert_eq!(requests.len(), 1);
+    assert!(requests[0].contains("Bearer cli-fresh-access"));
+    let tokens = storage.load_tokens(&account_id).unwrap();
+    assert_eq!(tokens.refresh_token, "", "the shared copy must be dropped");
+}
+
+#[tokio::test]
+async fn borrowed_token_with_minutes_left_is_still_used() {
+    use crate::account_storage::ProviderAccountStorage;
+    use chrono::{Duration, Utc};
+
+    let temp = tempfile::tempdir().unwrap();
+    let storage = ProviderAccountStorage::new(temp.path());
+    let (account_id, account_dir) =
+        setup_test_account(&storage, Utc::now() + Duration::minutes(3), "");
+    // The CLI still holds the same token, so there is nothing newer to take.
+    let host = write_host_auth(temp.path(), "old-access", "usr-stored");
+
+    let (base_url, handle) = mock_server(vec![billing_ok()]).await;
+    super::fetch_with_host(
+        &reqwest::Client::new(),
+        &account_id,
+        account_dir,
+        &format!("{base_url}/v1/billing?format=credits"),
+        &format!("{base_url}/oauth2/token"),
+        Some(&host),
+    )
+    .await
+    .unwrap();
+
+    assert!(handle.await.unwrap()[0].contains("Bearer old-access"));
+}

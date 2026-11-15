@@ -201,7 +201,7 @@ async fn poll_for_token(
     loop {
         tokio::time::sleep(Duration::from_secs(interval)).await;
         match poll_token(client, endpoint, &device_code.device_code).await? {
-            PollOutcome::Token(token) => return Ok(token),
+            PollOutcome::Token(token) => return Ok(token.0),
             PollOutcome::Pending => continue,
             PollOutcome::SlowDown => {
                 interval += 5;

@@ -44,6 +44,19 @@ impl fmt::Debug for Redacted<'_, Option<String>> {
     }
 }
 
+/// A credential carried inside an enum (an app message, a poll result), which the
+/// struct macro below can't reach. Its `Debug` output is masked.
+#[derive(Clone, PartialEq, Eq)]
+pub struct SecretText(pub String);
+
+impl fmt::Debug for SecretText {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("SecretText")
+            .field(&Redacted(&self.0))
+            .finish()
+    }
+}
+
 /// `redacted_debug!(Type { plain, fields } secret { token, fields });`
 ///
 /// Implements `Debug` for a struct, printing `secret` fields as `<redacted>`.
@@ -106,6 +119,7 @@ mod tests {
         "code_verifier",
         "code_input",
         "state_token",
+        "device_code",
     ];
 
     /// Guards the whole crate: no struct that derives `Debug` may hold a field
@@ -189,6 +203,27 @@ mod tests {
             }
         }
         found
+    }
+
+    #[test]
+    fn credentials_carried_in_enums_are_masked() {
+        let message = format!(
+            "{:?}",
+            crate::app::Message::UpdateClaudeLoginCode(super::SecretText("pasted-code-123".into()))
+        );
+        let poll = format!(
+            "{:?}",
+            crate::providers::copilot::device_flow::PollOutcome::Token(super::SecretText(
+                "ghu_secret_token".into()
+            ))
+        );
+        for out in [&message, &poll] {
+            assert!(out.contains("<redacted>"), "{out}");
+            assert!(
+                !out.contains("pasted-code-123") && !out.contains("ghu_secret"),
+                "{out}"
+            );
+        }
     }
 
     #[test]

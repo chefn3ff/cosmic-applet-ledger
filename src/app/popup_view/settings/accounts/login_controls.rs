@@ -146,7 +146,7 @@ pub(super) fn claude_login_controls(
         );
         content = content.push(
             widget::text_input(fl!("claude-login-code-placeholder"), &login.code_input)
-                .on_input(Message::UpdateClaudeLoginCode)
+                .on_input(|code| Message::UpdateClaudeLoginCode(crate::redact::SecretText(code)))
                 .on_submit(|_| Message::SubmitClaudeLoginCode)
                 .width(Length::Fill),
         );

@@ -202,7 +202,7 @@ pub enum Message {
     PageProviderAccount(PagerDirection),
     PageProviderViewport(PagerDirection),
     DeleteAccount(ProviderId, String),
-    UpdateClaudeLoginCode(String),
+    UpdateClaudeLoginCode(crate::redact::SecretText),
     SubmitClaudeLoginCode,
     CopyCopilotLoginCode(String),
     ClearCopilotLoginCodeCopied(String),
@@ -682,7 +682,7 @@ impl AppModel {
             Message::ClearCopilotLoginCodeCopied(flow_id) => {
                 self.clear_copilot_login_code_copied(&flow_id);
             }
-            Message::UpdateClaudeLoginCode(code) => self.update_claude_login_code(code),
+            Message::UpdateClaudeLoginCode(code) => self.update_claude_login_code(code.0),
             Message::SubmitClaudeLoginCode => return Some(self.submit_claude_login_code()),
             Message::StartCursorScan => return Some(self.start_cursor_scan()),
             Message::ConfirmCursorScan => return Some(self.confirm_cursor_scan()),

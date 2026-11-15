@@ -507,7 +507,7 @@ mod tests {
         )
         .await;
 
-        let request = request.await.unwrap();
+        let request = bounded(request).await;
         assert!(request.starts_with("GET /usage"), "{request}");
         assert!(request.contains("Bearer opencode-fresh"), "{request}");
         let tokens = storage.load_tokens(&account_id).unwrap();
@@ -548,5 +548,99 @@ mod tests {
                 "stale-access"
             );
         }
+    }
+
+    /// Waits for the mock server request, failing (not hanging) if it never arrives.
+    async fn bounded(request: tokio::task::JoinHandle<String>) -> String {
+        tokio::time::timeout(std::time::Duration::from_secs(5), request)
+            .await
+            .expect("the usage request was never sent")
+            .unwrap()
+    }
+
+    fn seed_account(
+        dir: &std::path::Path,
+        refresh: &str,
+        expires_at: chrono::DateTime<Utc>,
+    ) -> (ProviderAccountStorage, String, std::path::PathBuf) {
+        let storage = ProviderAccountStorage::new(dir);
+        let stored = storage
+            .create_account(NewProviderAccount {
+                provider: ProviderId::Codex,
+                email: "user@example.com".to_string(),
+                provider_account_id: Some("acct-ours".to_string()),
+                organization_id: None,
+                organization_name: None,
+                tokens: ProviderAccountTokens {
+                    access_token: "stale-access".to_string(),
+                    refresh_token: refresh.to_string(),
+                    expires_at,
+                    scope: Vec::new(),
+                    token_id: None,
+                },
+                snapshot: None,
+            })
+            .unwrap();
+        (storage, stored.account_ref.account_id, stored.account_dir)
+    }
+
+    #[tokio::test]
+    async fn pre_060_codex_import_sharing_opencode_refresh_token_stops_refreshing() {
+        let temp = tempdir().unwrap();
+        // Old import: Ledger holds the very refresh token OpenCode holds.
+        let (storage, account_id, account_dir) = seed_account(
+            &temp.path().join("accounts"),
+            "opencode-refresh",
+            Utc::now() - chrono::Duration::hours(1),
+        );
+        let auth = temp.path().join("auth.json");
+        write_opencode(&auth, "opencode-fresh", "acct-ours");
+        let mut env = crate::test_support::test_env();
+        env.set(OPENCODE_AUTH_PATH_ENV, &auth);
+
+        // One-shot server: a token-endpoint call would take the only response and fail.
+        let (usage, request) =
+            server(200, r#"{"email":"user@example.com","rate_limit":null}"#).await;
+        let _ = super::super::fetch_at(
+            &reqwest::Client::new(),
+            &account_id,
+            account_dir,
+            &usage,
+            "http://127.0.0.1:9/token",
+        )
+        .await;
+
+        let request = bounded(request).await;
+        assert!(request.starts_with("GET /usage"), "{request}");
+        assert!(request.contains("Bearer opencode-fresh"), "{request}");
+        assert_eq!(storage.load_tokens(&account_id).unwrap().refresh_token, "");
+    }
+
+    #[tokio::test]
+    async fn borrowed_codex_token_with_minutes_left_is_still_used() {
+        let temp = tempdir().unwrap();
+        let (_storage, account_id, account_dir) = seed_account(
+            &temp.path().join("accounts"),
+            "",
+            Utc::now() + chrono::Duration::minutes(3),
+        );
+        // OpenCode still holds the same token, so there is nothing newer to take.
+        let auth = temp.path().join("auth.json");
+        write_opencode(&auth, "stale-access", "acct-ours");
+        let mut env = crate::test_support::test_env();
+        env.set(OPENCODE_AUTH_PATH_ENV, &auth);
+
+        let (usage, request) =
+            server(200, r#"{"email":"user@example.com","rate_limit":null}"#).await;
+        let _ = super::super::fetch_at(
+            &reqwest::Client::new(),
+            &account_id,
+            account_dir,
+            &usage,
+            "http://127.0.0.1:9/token",
+        )
+        .await;
+
+        assert!(bounded(request).await.contains("Bearer stale-access"));
     }
 }

@@ -96,8 +96,15 @@ pub(crate) async fn fetch_with_host(
         host_auth,
     };
 
+    renew.drop_shared_refresh_token(&mut tokens);
+
     if tokens.expires_at <= Utc::now() + REFRESH_BEFORE_EXPIRY {
-        renew.run(&mut tokens).await?;
+        match renew.run(&mut tokens).await {
+            // A borrowed token the CLI hasn't replaced yet is still good until it
+            // really expires (or is refused below); keep using it.
+            Err(GrokError::HostSignInExpired) if tokens.expires_at > Utc::now() => {}
+            result => result?,
+        }
     }
 
     let mut response = send_billing_request(client, billing_url, &tokens.access_token).await?;
@@ -179,6 +186,32 @@ impl Renewal<'_> {
             self.token_url,
         )
         .await
+    }
+
+    /// Accounts imported before 0.6.0 kept a copy of the CLI's refresh token. While
+    /// that copy is still the CLI's current one, refreshing it would sign the CLI
+    /// out, so it is dropped and the account becomes a borrowing (imported) one.
+    fn drop_shared_refresh_token(&self, tokens: &mut ProviderAccountTokens) {
+        if tokens.refresh_token.trim().is_empty() {
+            return;
+        }
+        let Some(host) = self.host_auth.and_then(account::read_host_credentials) else {
+            return;
+        };
+        if host.refresh_token.as_deref() != Some(tokens.refresh_token.as_str())
+            || !host_is_same_account(&host, self.metadata)
+        {
+            return;
+        }
+        tokens.refresh_token.clear();
+        if let Err(error) = self.storage.save_tokens(self.account_id, tokens) {
+            // The cleared copy is held in memory and retried by `load_tokens`.
+            tracing::warn!(account_id = self.account_id, %error, "could not save after dropping a copied Grok refresh token");
+        }
+        tracing::info!(
+            account_id = self.account_id,
+            "dropped a refresh token shared with the Grok CLI"
+        );
     }
 
     fn adopt_host_token(&self, tokens: &mut ProviderAccountTokens) -> Result<(), GrokError> {

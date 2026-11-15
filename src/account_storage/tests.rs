@@ -564,3 +564,39 @@ fn rotated_tokens_survive_a_failed_save() {
     let on_disk: ProviderAccountTokens = read_json(&stored.account_dir.join(TOKENS_FILE)).unwrap();
     assert_eq!(on_disk.refresh_token, "rotated-refresh-token");
 }
+
+#[test]
+fn a_new_sign_in_replaces_tokens_held_from_a_failed_save() {
+    let storage = ProviderAccountStorage::new(test_dir("held-then-replaced"));
+    let new_account = |tokens: ProviderAccountTokens| NewProviderAccount {
+        provider: ProviderId::Claude,
+        email: "person@example.com".to_string(),
+        provider_account_id: None,
+        organization_id: None,
+        organization_name: None,
+        tokens,
+        snapshot: None,
+    };
+    let stored = storage.create_account(new_account(tokens())).unwrap();
+    let account_id = stored.account_ref.account_id.clone();
+
+    // A failed save holds older tokens in memory.
+    let mut held = tokens();
+    held.refresh_token = "held-refresh-token".to_string();
+    let tokens_path = stored.account_dir.join(TOKENS_FILE);
+    fs::remove_file(&tokens_path).unwrap();
+    fs::create_dir(&tokens_path).unwrap();
+    assert!(storage.save_tokens(&account_id, &held).is_err());
+    fs::remove_dir(&tokens_path).unwrap();
+
+    // The user signs in again; those tokens must win, now and on every later read.
+    let mut fresh = tokens();
+    fresh.refresh_token = "fresh-sign-in-token".to_string();
+    storage
+        .replace_account(account_id.clone(), new_account(fresh.clone()))
+        .unwrap();
+    assert_eq!(storage.load_tokens(&account_id).unwrap(), fresh);
+    assert_eq!(storage.load_tokens(&account_id).unwrap(), fresh);
+    let on_disk: ProviderAccountTokens = read_json(&tokens_path).unwrap();
+    assert_eq!(on_disk.refresh_token, "fresh-sign-in-token");
+}

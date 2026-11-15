@@ -6,7 +6,7 @@ use super::headers::{
 };
 use serde::Deserialize;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct DeviceCode {
     pub device_code: String,
     pub user_code: String,
@@ -14,8 +14,9 @@ pub struct DeviceCode {
     pub expires_in: u64,
     pub interval: u64,
 }
+crate::redact::redacted_debug!(DeviceCode { user_code, verification_uri, expires_in, interval } secret { device_code });
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 struct RawDeviceCode {
     device_code: String,
     user_code: String,
@@ -25,6 +26,7 @@ struct RawDeviceCode {
     #[serde(default)]
     interval: Option<u64>,
 }
+crate::redact::redacted_debug!(RawDeviceCode { user_code, verification_uri, expires_in, interval } secret { device_code });
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CopilotIdentity {
@@ -51,7 +53,7 @@ struct RawTokenError {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PollOutcome {
-    Token(String),
+    Token(crate::redact::SecretText),
     Pending,
     SlowDown,
     Expired,
@@ -122,7 +124,7 @@ pub fn parse_poll_outcome(body: &str) -> PollOutcome {
     if let Ok(success) = serde_json::from_str::<RawTokenSuccess>(body)
         && !success.access_token.is_empty()
     {
-        return PollOutcome::Token(success.access_token);
+        return PollOutcome::Token(crate::redact::SecretText(success.access_token));
     }
     match serde_json::from_str::<RawTokenError>(body) {
         Ok(err) => match err.error.as_str() {
@@ -226,7 +228,7 @@ mod tests {
         let value: serde_json::Value = serde_json::from_str(raw).unwrap();
         let body = value.get("body_text").unwrap().as_str().unwrap();
         match parse_poll_outcome(body) {
-            PollOutcome::Token(token) => assert!(token.starts_with("ghu_")),
+            PollOutcome::Token(token) => assert!(token.0.starts_with("ghu_")),
             other => panic!("expected token, got {other:?}"),
         }
     }

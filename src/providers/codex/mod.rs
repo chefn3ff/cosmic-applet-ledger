@@ -92,8 +92,10 @@ async fn fetch_at(
         .load_tokens(account_id)
         .map_err(map_account_storage_error)?;
 
+    drop_shared_refresh_token(&storage, account_id, &metadata, &mut tokens);
+
     if tokens.expires_at <= Utc::now() + REFRESH_BEFORE_EXPIRY {
-        tokens = renew_tokens(
+        match renew_tokens(
             client,
             &storage,
             account_id,
@@ -101,7 +103,14 @@ async fn fetch_at(
             &tokens,
             token_endpoint,
         )
-        .await?;
+        .await
+        {
+            Ok(renewed) => tokens = renewed,
+            // A borrowed token OpenCode hasn't replaced yet is still good until it
+            // really expires (or is refused below); keep using it.
+            Err(CodexError::HostSignInExpired) if tokens.expires_at > Utc::now() => {}
+            Err(error) => return Err(error),
+        }
     }
 
     let auth = auth_from_storage(&metadata, &tokens);
@@ -160,6 +169,44 @@ async fn renew_tokens(
         return adopt_opencode_token(storage, account_id, metadata, current);
     }
     refresh_tokens(client, storage, account_id, current, token_endpoint).await
+}
+
+/// Accounts imported from OpenCode before 0.6.0 kept a copy of its refresh token.
+/// While that copy is still OpenCode's current one, refreshing it would sign
+/// OpenCode out, so it is dropped and the account borrows OpenCode's token instead.
+fn drop_shared_refresh_token(
+    storage: &ProviderAccountStorage,
+    account_id: &str,
+    metadata: &ProviderAccountMetadata,
+    tokens: &mut ProviderAccountTokens,
+) {
+    if tokens.refresh_token.is_empty() {
+        return;
+    }
+    let Some(crate::providers::opencode_auth::OpenCodeCredential::OAuth {
+        access,
+        refresh,
+        account_id: opencode_account,
+        ..
+    }) = crate::providers::opencode_auth::discover("openai")
+    else {
+        return;
+    };
+    let opencode_account =
+        opencode_account.or_else(|| crate::auth::account_id_from_id_token(&access));
+    let same_account = matches!(
+        (opencode_account.as_deref(), metadata.provider_account_id.as_deref()),
+        (Some(theirs), Some(ours)) if theirs == ours
+    );
+    if !same_account || refresh != tokens.refresh_token {
+        return;
+    }
+    tokens.refresh_token.clear();
+    if let Err(error) = storage.save_tokens(account_id, tokens) {
+        // The cleared copy is held in memory and retried by `load_tokens`.
+        tracing::warn!(account_id, %error, "could not save after dropping a copied Codex refresh token");
+    }
+    tracing::info!(account_id, "dropped a refresh token shared with OpenCode");
 }
 
 /// Reads OpenCode's `auth.json` (never writes it) and takes its Codex access token,

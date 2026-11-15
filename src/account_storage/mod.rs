@@ -171,6 +171,9 @@ impl ProviderAccountStorage {
 
         self.write_json_file(&account_id, METADATA_FILE, &metadata)?;
         self.write_json_file(&account_id, TOKENS_FILE, &account.tokens)?;
+        // A sign-in or re-import supersedes tokens held from an earlier failed save;
+        // left in place, `load_tokens` would write those older tokens over these.
+        lock_unsaved_tokens().remove(&self.root.join(&account_id));
         if let Some(snapshot) = account.snapshot {
             self.write_json_file(&account_id, SNAPSHOT_FILE, &snapshot)?;
         }
