@@ -60,6 +60,11 @@
     <keyword>Applet</keyword>
   </keywords>
   <releases>
+    <release type="stable" version="0.5.0" date="2026-11-14">
+      <description>
+        <p>Provider logos are black and white by default, with a Color Provider Icons option. Refreshed tokens are never lost when a save fails, and sign-in is more robust against stray or stalled connections.</p>
+      </description>
+    </release>
     <release type="stable" version="0.4.1" date="2026-11-14">
       <description>
         <p>New app ID matching the GitHub account, with settings copied over automatically. Rewritten README with screenshots of every provider.</p>
