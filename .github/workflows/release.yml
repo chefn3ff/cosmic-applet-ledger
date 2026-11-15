@@ -14,7 +14,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Install system dependencies
         run: |
@@ -28,9 +28,12 @@ jobs:
             libfreetype6-dev
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable branch
+        with:
+          toolchain: stable
 
-      - uses: Swatinem/rust-cache@v2
+      # No rust-cache here: a release builds from a clean slate, so a poisoned
+      # cache from another run can never end up in a published package.
 
       - name: Verify tag matches package version
         run: |
@@ -45,7 +48,7 @@ jobs:
         run: cargo install cargo-deb cargo-generate-rpm --locked
 
       - name: Build release binary
-        run: cargo build --release
+        run: cargo build --release --locked
 
       - name: Package tarball
         run: |
@@ -71,7 +74,7 @@ jobs:
           cat checksums.txt
 
       - name: Upload release artifacts
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           files: |
             dist/*.tar.gz
