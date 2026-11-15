@@ -11,7 +11,7 @@ use thiserror::Error;
 pub(super) const TOKEN_ENDPOINT: &str = "https://claude.ai/v1/oauth/token";
 const CLIENT_ID: &str = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub(crate) struct ClaudeTokenResponse {
     pub access_token: String,
     pub refresh_token: String,
@@ -23,6 +23,7 @@ pub(crate) struct ClaudeTokenResponse {
     pub organization_id: Option<String>,
     pub organization_name: Option<String>,
 }
+crate::redact::redacted_debug!(ClaudeTokenResponse { expires_at, scope, token_id, account_id, email, organization_id, organization_name } secret { access_token, refresh_token });
 
 impl ClaudeTokenResponse {
     pub(crate) fn into_new_account(self) -> Result<NewProviderAccount, ClaudeOAuthTokenError> {
@@ -74,7 +75,7 @@ pub(crate) enum ClaudeOAuthTokenError {
     MissingAccountEmail,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 struct RawClaudeTokenResponse {
     #[serde(default)]
     access_token: Option<String>,
@@ -91,6 +92,7 @@ struct RawClaudeTokenResponse {
     #[serde(default)]
     organization: Option<RawClaudeOrganization>,
 }
+crate::redact::redacted_debug!(RawClaudeTokenResponse { expires_in, scope, token_uuid, account, organization } secret { access_token, refresh_token });
 
 #[derive(Debug, Deserialize)]
 struct RawClaudeAccount {

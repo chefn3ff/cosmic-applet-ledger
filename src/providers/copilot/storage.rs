@@ -8,10 +8,11 @@ use std::path::Path;
 const TOKENS_FILE: &str = "tokens.json";
 const METADATA_FILE: &str = "metadata.json";
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CopilotTokens {
     pub access_token: String,
 }
+crate::redact::redacted_debug!(CopilotTokens {  } secret { access_token });
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CopilotMetadata {

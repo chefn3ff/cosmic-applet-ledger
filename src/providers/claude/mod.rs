@@ -400,8 +400,10 @@ fn claude_local_stats() -> (
         std::collections::HashMap::new();
     let mut model_totals: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
     for (date, model, tokens) in messages.into_values() {
-        *day_totals.entry(date).or_default() += tokens;
-        *model_totals.entry(model).or_default() += tokens;
+        let day = day_totals.entry(date).or_default();
+        *day = day.saturating_add(tokens);
+        let per_model = model_totals.entry(model).or_default();
+        *per_model = per_model.saturating_add(tokens);
     }
 
     let days = (0..7)
@@ -484,10 +486,11 @@ fn transcript_usage(line: &str) -> Option<(String, (chrono::NaiveDate, String, u
     }
     let usage = message.get("usage")?;
     let field = |name: &str| usage.get(name).and_then(|v| v.as_u64()).unwrap_or(0);
+    // Saturating, so a corrupt or hostile JSONL line can't overflow the sum.
     let tokens = field("input_tokens")
-        + field("output_tokens")
-        + field("cache_read_input_tokens")
-        + field("cache_creation_input_tokens");
+        .saturating_add(field("output_tokens"))
+        .saturating_add(field("cache_read_input_tokens"))
+        .saturating_add(field("cache_creation_input_tokens"));
     let timestamp = value.get("timestamp").and_then(|t| t.as_str())?;
     let date = DateTime::parse_from_rfc3339(timestamp)
         .ok()?
@@ -1081,6 +1084,16 @@ mod tests {
         assert_eq!(id, "msg_1");
         assert_eq!(model, "claude-sonnet-5");
         assert_eq!(tokens, 2 + 8245 + 35348 + 720);
+    }
+
+    #[test]
+    fn transcript_usage_saturates_instead_of_overflowing() {
+        let max = u64::MAX;
+        let line = format!(
+            r#"{{"type":"assistant","timestamp":"2026-09-01T11:51:58.394Z","message":{{"id":"msg_1","model":"claude-sonnet-5","usage":{{"input_tokens":{max},"output_tokens":{max},"cache_read_input_tokens":1,"cache_creation_input_tokens":1}}}}}}"#
+        );
+        let (_, (_, _, tokens)) = transcript_usage(&line).unwrap();
+        assert_eq!(tokens, u64::MAX);
     }
 
     #[test]

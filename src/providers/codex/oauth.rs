@@ -18,13 +18,14 @@ pub(super) const FALLBACK_CALLBACK_PORT: u16 = 1457;
 const SCOPE: &str = "openid profile email offline_access api.connectors.read api.connectors.invoke";
 const ORIGINATOR: &str = "codex_cli_rs";
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub(super) struct PkceCodes {
     pub code_verifier: String,
     pub code_challenge: String,
 }
+crate::redact::redacted_debug!(PkceCodes { code_challenge } secret { code_verifier });
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub(super) struct CodexOAuthTokenResponse {
     pub access_token: String,
     pub refresh_token: String,
@@ -33,6 +34,7 @@ pub(super) struct CodexOAuthTokenResponse {
     pub email: Option<String>,
     pub account_id: Option<String>,
 }
+crate::redact::redacted_debug!(CodexOAuthTokenResponse { expires_at, email, account_id } secret { access_token, refresh_token, id_token });
 
 impl CodexOAuthTokenResponse {
     pub(super) fn into_auth(self) -> CodexAuth {

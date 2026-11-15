@@ -137,7 +137,7 @@ async fn run_login_inner(
             verification_uri: device_code.verification_uri.clone(),
         })
         .await;
-    open_browser(&device_code.verification_uri);
+    crate::browser::open(&device_code.verification_uri, "Copilot device URL");
     let access_token = poll_for_token(&client, endpoints.token, &device_code).await?;
     let identity = fetch_identity(&client, endpoints.identity, &access_token).await?;
     commit_validated_login(
@@ -224,12 +224,6 @@ async fn poll_for_token(
 fn new_flow_id() -> String {
     let millis = chrono::Utc::now().timestamp_millis();
     format!("copilot-{millis}-{}", std::process::id())
-}
-
-fn open_browser(url: &str) {
-    if let Err(error) = std::process::Command::new("xdg-open").arg(url).spawn() {
-        tracing::warn!(url = %url, error = %error, "failed to open Copilot device URL");
-    }
 }
 
 fn verify_reauth_github_user_id(expected: Option<u64>, actual: u64) -> Result<(), String> {

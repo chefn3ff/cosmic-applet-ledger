@@ -3,7 +3,7 @@
 use crate::config::Config;
 use chrono::{DateTime, Utc};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct KeyAuthenticationState {
     pub account_id: String,
     pub label: String,
@@ -14,6 +14,7 @@ pub struct KeyAuthenticationState {
     pub error: Option<String>,
     reauth_target: Option<KeyAuthenticationTarget>,
 }
+crate::redact::redacted_debug!(KeyAuthenticationState { account_id, label, status, api_key_from_opencode, api_key_visible, error, reauth_target } secret { api_key });
 
 #[derive(Debug, Clone)]
 pub(crate) struct KeyAuthenticationTarget {
@@ -28,12 +29,27 @@ pub enum KeyAuthenticationStatus {
     Failed,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum KeyAuthenticationEvent {
     ApiKeyChanged(String),
     ApiKeyVisibilityToggled,
     LabelChanged(String),
     Saved,
+}
+
+// Hand-written so a typed API key never reaches a debug log of app messages.
+impl std::fmt::Debug for KeyAuthenticationEvent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ApiKeyChanged(key) => f
+                .debug_tuple("ApiKeyChanged")
+                .field(&crate::redact::Redacted(key))
+                .finish(),
+            Self::ApiKeyVisibilityToggled => f.write_str("ApiKeyVisibilityToggled"),
+            Self::LabelChanged(label) => f.debug_tuple("LabelChanged").field(label).finish(),
+            Self::Saved => f.write_str("Saved"),
+        }
+    }
 }
 
 pub(crate) trait KeyAuthenticationAdapter {

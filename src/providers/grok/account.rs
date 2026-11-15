@@ -13,7 +13,7 @@ use crate::model::ProviderId;
 
 pub const GROK_AUTH_KEY: &str = "https://auth.x.ai::b1a00492-073a-47ea-816f-4c329264a828";
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct HostGrokCredentials {
     pub access_token: String,
     pub refresh_token: Option<String>,
@@ -24,6 +24,7 @@ pub struct HostGrokCredentials {
     pub last_name: Option<String>,
     pub team_id: Option<String>,
 }
+crate::redact::redacted_debug!(HostGrokCredentials { expires_at, email, user_id, first_name, last_name, team_id } secret { access_token, refresh_token });
 
 pub fn host_auth_file_path() -> Option<PathBuf> {
     host_user_home_dir().map(|home| home.join(".grok").join("auth.json"))

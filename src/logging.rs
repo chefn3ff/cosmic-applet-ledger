@@ -13,10 +13,14 @@ pub const LOG_RETENTION_DAYS: u64 = 7;
 
 pub fn init(default_level: &str) -> Result<WorkerGuard, LoggingError> {
     let paths = paths();
-    fs::create_dir_all(&paths.log_dir).map_err(|source| LoggingError::CreateLogDir {
-        path: paths.log_dir.clone(),
-        source,
-    })?;
+    // Logging starts first, so it makes the state folder private before anything
+    // (accounts, the refresh lock) is written under it, and tightens an older install's.
+    for dir in [&paths.state_dir, &paths.log_dir] {
+        create_private_dir(dir).map_err(|source| LoggingError::CreateLogDir {
+            path: dir.clone(),
+            source,
+        })?;
+    }
     prune_old_logs(&paths.log_dir);
     let file_appender = tracing_appender::rolling::daily(&paths.log_dir, "ledger.log");
     let (file_writer, guard) = tracing_appender::non_blocking(file_appender);
@@ -31,6 +35,18 @@ pub fn init(default_level: &str) -> Result<WorkerGuard, LoggingError> {
         .map_err(LoggingError::InitTracing)?;
 
     Ok(guard)
+}
+
+/// Creates `dir` (and any missing parents) and sets it to `0o700`, including when it
+/// already existed with looser permissions.
+fn create_private_dir(dir: &Path) -> std::io::Result<()> {
+    fs::create_dir_all(dir)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(dir, fs::Permissions::from_mode(0o700))?;
+    }
+    Ok(())
 }
 
 fn prune_old_logs(log_dir: &Path) {
@@ -75,11 +91,31 @@ mod tests {
     }
 
     #[test]
-    fn log_dir_is_created_on_init() {
+    #[cfg(unix)]
+    fn state_and_log_dirs_are_created_private() {
+        use std::os::unix::fs::PermissionsExt;
+        let state = test_log_dir();
+        let logs = state.join("logs");
+        create_private_dir(&state).unwrap();
+        create_private_dir(&logs).unwrap();
+        for dir in [&state, &logs] {
+            let mode = fs::metadata(dir).unwrap().permissions().mode() & 0o777;
+            assert_eq!(mode, 0o700, "{} is {mode:o}", dir.display());
+        }
+        fs::remove_dir_all(&state).unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn an_existing_open_dir_is_tightened_to_private() {
+        use std::os::unix::fs::PermissionsExt;
         let dir = test_log_dir();
-        assert!(!dir.exists());
         fs::create_dir_all(&dir).unwrap();
-        assert!(dir.exists());
+        fs::set_permissions(&dir, fs::Permissions::from_mode(0o755)).unwrap();
+        create_private_dir(&dir).unwrap();
+        let mode = fs::metadata(&dir).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o700);
+        fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

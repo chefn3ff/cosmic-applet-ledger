@@ -4,6 +4,7 @@ mod account_selection;
 pub mod account_storage;
 mod app;
 mod auth;
+mod browser;
 mod config;
 mod currency_format;
 #[cfg(debug_assertions)]
@@ -17,6 +18,7 @@ mod logging;
 mod model;
 mod provider_enablement;
 mod providers;
+mod redact;
 mod refresh_owner;
 mod runtime;
 mod shared_state;

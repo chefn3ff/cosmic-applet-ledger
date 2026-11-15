@@ -14,20 +14,22 @@ pub const TOKEN_ENDPOINT: &str = "https://oauth2.googleapis.com/token";
 
 pub const REFRESH_BEFORE_EXPIRY: Duration = Duration::minutes(5);
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct GoogleOAuthConfig {
     pub client_id: Cow<'static, str>,
     pub client_secret: Cow<'static, str>,
     pub scope: Cow<'static, str>,
 }
+crate::redact::redacted_debug!(GoogleOAuthConfig { client_id, scope } secret { client_secret });
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct PkceCodes {
     pub code_verifier: String,
     pub code_challenge: String,
 }
+crate::redact::redacted_debug!(PkceCodes { code_challenge } secret { code_verifier });
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct GoogleOAuthTokens {
     pub access_token: String,
     pub refresh_token: String,
@@ -35,14 +37,16 @@ pub struct GoogleOAuthTokens {
     pub expires_at: DateTime<Utc>,
     pub scope: Vec<String>,
 }
+crate::redact::redacted_debug!(GoogleOAuthTokens { expires_at, scope } secret { access_token, refresh_token, id_token });
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct GoogleRefreshedTokens {
     pub access_token: String,
     pub refresh_token: String,
     pub expires_at: DateTime<Utc>,
     pub scope: Vec<String>,
 }
+crate::redact::redacted_debug!(GoogleRefreshedTokens { expires_at, scope } secret { access_token, refresh_token });
 
 #[derive(Debug)]
 pub enum GoogleRefreshError {
@@ -53,7 +57,7 @@ pub enum GoogleRefreshError {
     Parse(String),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 struct RawTokenResponse {
     access_token: String,
     #[serde(default)]
@@ -65,6 +69,7 @@ struct RawTokenResponse {
     #[serde(default)]
     scope: Option<String>,
 }
+crate::redact::redacted_debug!(RawTokenResponse { expires_in, scope } secret { access_token, refresh_token, id_token });
 
 pub fn parse_token_response(raw: &str) -> Result<GoogleOAuthTokens, String> {
     let parsed: RawTokenResponse = serde_json::from_str(raw)
@@ -199,7 +204,7 @@ pub fn parse_refresh_response(
     original_refresh_token: &str,
     now: DateTime<Utc>,
 ) -> Result<GoogleRefreshedTokens, String> {
-    #[derive(Debug, Deserialize)]
+    #[derive(Deserialize)]
     struct Raw {
         access_token: Option<String>,
         #[serde(default)]
@@ -209,6 +214,7 @@ pub fn parse_refresh_response(
         #[serde(default)]
         scope: Option<String>,
     }
+    crate::redact::redacted_debug!(Raw { expires_in, scope } secret { access_token, refresh_token });
     let parsed: Raw = serde_json::from_str(raw).map_err(|error| error.to_string())?;
     let access_token = parsed
         .access_token

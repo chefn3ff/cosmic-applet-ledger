@@ -1,9 +1,7 @@
 use super::{Duration, Message, Task, UPDATE_RETRY_INITIAL_SECS, UPDATE_RETRY_MAX_SECS, runtime};
 
 pub(super) fn open_url(url: &str) {
-    if let Err(e) = std::process::Command::new("xdg-open").arg(url).spawn() {
-        tracing::warn!(url = %url, error = %e, "failed to open url");
-    }
+    crate::browser::open(url, "link");
 }
 
 pub(super) fn update_check_task(attempt: u32) -> Task<Message> {

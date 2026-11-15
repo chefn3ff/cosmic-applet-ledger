@@ -44,7 +44,7 @@ pub struct ProviderAccountMetadata {
     pub antigravity_last_tier_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ProviderAccountTokens {
     pub access_token: String,
     pub refresh_token: String,
@@ -52,6 +52,7 @@ pub struct ProviderAccountTokens {
     pub scope: Vec<String>,
     pub token_id: Option<String>,
 }
+crate::redact::redacted_debug!(ProviderAccountTokens { expires_at, scope, token_id } secret { access_token, refresh_token });
 
 #[derive(Debug, Clone)]
 pub struct NewProviderAccount {

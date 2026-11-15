@@ -17,11 +17,12 @@ pub const AUTHORIZE_URL: &str = "https://auth.x.ai/oauth2/authorize";
 pub const TOKEN_URL: &str = "https://auth.x.ai/oauth2/token";
 pub const SCOPES: &str = "openid profile email offline_access grok-cli:access api:access";
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct PkceCodes {
     pub code_verifier: String,
     pub code_challenge: String,
 }
+crate::redact::redacted_debug!(PkceCodes { code_challenge } secret { code_verifier });
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Default)]
 pub struct GrokClaims {
@@ -37,7 +38,7 @@ pub struct GrokClaims {
     pub tier: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct GrokTokenResponse {
     pub access_token: String,
     pub refresh_token: String,
@@ -46,8 +47,9 @@ pub struct GrokTokenResponse {
     pub token_type: Option<String>,
     pub scope: Option<String>,
 }
+crate::redact::redacted_debug!(GrokTokenResponse { expires_at, token_type, scope } secret { access_token, refresh_token, id_token });
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 struct RawTokenResponse {
     #[serde(default)]
     access_token: Option<String>,
@@ -64,6 +66,7 @@ struct RawTokenResponse {
     #[serde(default)]
     scope: Option<String>,
 }
+crate::redact::redacted_debug!(RawTokenResponse { expires_in, expires_at, token_type, scope } secret { access_token, refresh_token, id_token });
 
 pub fn new_pkce() -> PkceCodes {
     let bytes = random_bytes();

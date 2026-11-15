@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Utc};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct CodexAuth {
     pub access_token: String,
     pub account_id: Option<String>,
@@ -10,13 +10,15 @@ pub struct CodexAuth {
     pub id_token: Option<String>,
     pub expires_at: Option<DateTime<Utc>>,
 }
+crate::redact::redacted_debug!(CodexAuth { account_id, expires_at } secret { access_token, refresh_token, id_token });
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ClaudeAuth {
     pub access_token: String,
     pub scopes: Vec<String>,
     pub subscription_type: Option<String>,
 }
+crate::redact::redacted_debug!(ClaudeAuth { scopes, subscription_type } secret { access_token });
 
 pub fn email_from_id_token(id_token: &str) -> Option<String> {
     let json = jwt_payload(id_token)?;

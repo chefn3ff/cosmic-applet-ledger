@@ -150,7 +150,12 @@ pub fn parse(body: &str, updated_at: chrono::DateTime<Utc>) -> Result<UsageSnaps
                 model.current_interval_usage_count,
             ) {
                 if total > 0 {
-                    format!("{} (5h): {}/{}", model_name, total - used, total)
+                    format!(
+                        "{} (5h): {}/{}",
+                        model_name,
+                        remaining_count(total, used),
+                        total
+                    )
                 } else {
                     format!("{} (5h): {}", model_name, remaining_percent)
                 }
@@ -174,7 +179,12 @@ pub fn parse(body: &str, updated_at: chrono::DateTime<Utc>) -> Result<UsageSnaps
                 model.current_weekly_usage_count,
             ) {
                 if total > 0 {
-                    format!("{} (Weekly): {}/{}", model_name, total - used, total)
+                    format!(
+                        "{} (Weekly): {}/{}",
+                        model_name,
+                        remaining_count(total, used),
+                        total
+                    )
                 } else {
                     format!("{} (Weekly): {}", model_name, remaining_percent)
                 }
@@ -235,6 +245,11 @@ fn reset_at(
         })
 }
 
+/// Count left in a window, never negative and never overflowing on bad API values.
+fn remaining_count(total: i64, used: i64) -> i64 {
+    total.saturating_sub(used).max(0)
+}
+
 fn window_seconds(
     start_time_millis: Option<i64>,
     end_time_millis: Option<i64>,
@@ -242,7 +257,8 @@ fn window_seconds(
 ) -> i64 {
     let reported = start_time_millis
         .zip(end_time_millis)
-        .map(|(start, end)| (end - start) / 1000)
+        .and_then(|(start, end)| end.checked_sub(start))
+        .map(|millis| millis / 1000)
         .filter(|seconds| *seconds > 0);
     reported.unwrap_or(fallback)
 }
@@ -250,6 +266,19 @@ fn window_seconds(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn window_math_survives_extreme_api_values() {
+        assert_eq!(
+            window_seconds(Some(i64::MIN), Some(i64::MAX), 18_000),
+            18_000
+        );
+        assert_eq!(window_seconds(Some(1_000), Some(18_001_000), 1), 18_000);
+        assert_eq!(remaining_count(100, 40), 60);
+        assert_eq!(remaining_count(100, 140), 0);
+        assert_eq!(remaining_count(i64::MAX, i64::MIN), i64::MAX);
+        assert_eq!(remaining_count(i64::MIN, i64::MAX), 0);
+    }
     use chrono::Utc;
 
     #[test]

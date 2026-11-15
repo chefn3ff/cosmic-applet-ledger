@@ -19,19 +19,20 @@ pub(crate) const REFRESH_ENDPOINT: &str = "https://api2.cursor.sh/oauth/token";
 const CURSOR_CLIENT_ID: &str = "KbZUR41cY7W6zRSdpSUJ7I7mLYBKOCmB";
 const IDENTITY_ENDPOINT: &str = "https://cursor.com/api/auth/me";
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 struct TokenRefreshResponse {
     access_token: Option<String>,
     #[serde(rename = "shouldLogout", default)]
     should_logout: bool,
 }
+crate::redact::redacted_debug!(TokenRefreshResponse { should_logout } secret { access_token });
 
 #[derive(Debug, Deserialize)]
 struct ScanIdentityResponse {
     email: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct CursorScanResult {
     pub email: String,
     pub plan: Option<String>,
@@ -40,6 +41,7 @@ pub struct CursorScanResult {
     pub expires_at: DateTime<Utc>,
     pub user_id: String,
 }
+crate::redact::redacted_debug!(CursorScanResult { email, plan, expires_at, user_id } secret { access_token, refresh_token });
 
 #[derive(Debug, Clone)]
 pub enum CursorScanState {

@@ -38,10 +38,11 @@ struct RawIdentity {
     login: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 struct RawTokenSuccess {
     access_token: String,
 }
+crate::redact::redacted_debug!(RawTokenSuccess {  } secret { access_token });
 
 #[derive(Debug, Deserialize)]
 struct RawTokenError {

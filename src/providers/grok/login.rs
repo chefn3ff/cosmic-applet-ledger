@@ -136,7 +136,7 @@ async fn run_login(
         output,
         oauth::TOKEN_URL,
         DEFAULT_BILLING_URL,
-        open_browser,
+        |url: &str| crate::browser::open(url, "Grok OAuth URL"),
     )
     .await;
     let _ = output
@@ -620,9 +620,3 @@ fn parse_query(query: &str) -> HashMap<String, String> {
 }
 
 use crate::providers::url_query::percent_decode;
-
-fn open_browser(url: &str) {
-    if let Err(error) = std::process::Command::new("xdg-open").arg(url).spawn() {
-        tracing::warn!(url = %url, error = %error, "failed to open Grok OAuth URL");
-    }
-}

@@ -20,7 +20,7 @@ const REDIRECT_URI: &str = "https://console.anthropic.com/oauth/code/callback";
 const CLIENT_ID: &str = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 const SCOPE: &str = "user:profile";
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ClaudeLoginState {
     pub flow_id: String,
     pub status: ClaudeLoginStatus,
@@ -32,6 +32,7 @@ pub struct ClaudeLoginState {
     pub state_token: String,
     pub target_account_id: Option<String>,
 }
+crate::redact::redacted_debug!(ClaudeLoginState { flow_id, status, login_url, error, redirect_uri, target_account_id } secret { code_input, code_verifier, state_token });
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ClaudeLoginStatus {
@@ -65,7 +66,7 @@ fn prepare_with_target(target_account_id: Option<String>) -> ClaudeLoginState {
     let code_verifier = new_code_verifier();
     let state_token = URL_SAFE_NO_PAD.encode(random_bytes());
     let authorization_url = authorization_url(REDIRECT_URI, &code_verifier, &state_token);
-    open_browser(&authorization_url);
+    crate::browser::open(&authorization_url, "Claude OAuth URL");
 
     ClaudeLoginState {
         flow_id: flow_id.clone(),
@@ -344,12 +345,6 @@ fn percent_encode(value: &str) -> String {
 }
 
 use crate::providers::url_query::percent_decode;
-
-fn open_browser(url: &str) {
-    if let Err(error) = std::process::Command::new("xdg-open").arg(url).spawn() {
-        tracing::warn!(url = %url, error = %error, "failed to open Claude OAuth URL");
-    }
-}
 
 #[cfg(test)]
 mod tests {

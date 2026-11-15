@@ -215,7 +215,7 @@ async fn run_oauth_flow(
     let url =
         authorization_url_with_hint(&oauth_config(), &redirect_uri, &pkce, &state, login_hint);
     send_login_url(flow_id, url.clone(), output).await;
-    open_browser(&url);
+    crate::browser::open(&url, "Antigravity OAuth URL");
 
     let deadline = crate::providers::oauth_callback::deadline();
 
@@ -389,12 +389,6 @@ fn parse_query(query: &str) -> HashMap<String, String> {
             Some((percent_decode(key), percent_decode(value)))
         })
         .collect()
-}
-
-fn open_browser(url: &str) {
-    if let Err(error) = std::process::Command::new("xdg-open").arg(url).spawn() {
-        tracing::warn!(url = %url, error = %error, "failed to open Antigravity OAuth URL");
-    }
 }
 
 #[cfg(test)]

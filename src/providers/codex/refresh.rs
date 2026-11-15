@@ -8,14 +8,15 @@ use serde::Deserialize;
 const CLIENT_ID: &str = "app_EMoamEEZ73f0CkXaXp7hrann";
 pub(crate) const TOKEN_ENDPOINT: &str = "https://auth.openai.com/oauth/token";
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct RefreshedCodexTokens {
     pub access_token: String,
     pub refresh_token: Option<String>,
     pub expires_at: DateTime<Utc>,
 }
+crate::redact::redacted_debug!(RefreshedCodexTokens { expires_at } secret { access_token, refresh_token });
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 struct RefreshResponse {
     access_token: String,
     #[serde(default)]
@@ -23,6 +24,7 @@ struct RefreshResponse {
     #[serde(default)]
     expires_in: Option<i64>,
 }
+crate::redact::redacted_debug!(RefreshResponse { expires_in } secret { access_token, refresh_token });
 
 pub(crate) async fn refresh_access_token_at(
     client: &reqwest::Client,
