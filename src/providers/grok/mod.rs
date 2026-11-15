@@ -54,6 +54,28 @@ pub async fn fetch_at(
     billing_url: &str,
     token_url: &str,
 ) -> Result<UsageSnapshot, GrokError> {
+    let host_auth = account::host_auth_file_path();
+    fetch_with_host(
+        client,
+        account_id,
+        account_dir,
+        billing_url,
+        token_url,
+        host_auth.as_deref(),
+    )
+    .await
+}
+
+/// `host_auth` is the Grok CLI's `auth.json`, read (never written) for accounts
+/// imported from the CLI.
+pub(crate) async fn fetch_with_host(
+    client: &reqwest::Client,
+    account_id: &str,
+    account_dir: PathBuf,
+    billing_url: &str,
+    token_url: &str,
+    host_auth: Option<&std::path::Path>,
+) -> Result<UsageSnapshot, GrokError> {
     let root = account_dir
         .parent()
         .ok_or_else(|| GrokError::AccountStorage("invalid account directory".to_string()))?;
@@ -65,13 +87,22 @@ pub async fn fetch_at(
         .load_tokens(account_id)
         .map_err(map_account_storage_error)?;
 
+    let renew = Renewal {
+        client,
+        storage: &storage,
+        account_id,
+        metadata: &metadata,
+        token_url,
+        host_auth,
+    };
+
     if tokens.expires_at <= Utc::now() + REFRESH_BEFORE_EXPIRY {
-        refresh_account_tokens(client, &storage, account_id, &mut tokens, token_url).await?;
+        renew.run(&mut tokens).await?;
     }
 
     let mut response = send_billing_request(client, billing_url, &tokens.access_token).await?;
     if response.status() == reqwest::StatusCode::UNAUTHORIZED {
-        refresh_account_tokens(client, &storage, account_id, &mut tokens, token_url).await?;
+        renew.run(&mut tokens).await?;
         response = send_billing_request(client, billing_url, &tokens.access_token).await?;
         if response.status() == reqwest::StatusCode::UNAUTHORIZED {
             return Err(GrokError::Unauthorized);
@@ -119,6 +150,80 @@ pub async fn fetch_at(
     let snapshot = usage::parse_billing_snapshot(&body, email, display_name, provider_account_id)?;
     let _ = storage.save_snapshot(account_id, &snapshot);
     Ok(snapshot)
+}
+
+/// How an account gets a new access token. An account signed in through Ledger
+/// refreshes with its own refresh token. An account imported from the Grok CLI
+/// has none on purpose: refreshing a copied token would rotate it and sign the
+/// CLI out, so it takes the CLI's current token instead and leaves refreshing
+/// to the CLI.
+struct Renewal<'a> {
+    client: &'a reqwest::Client,
+    storage: &'a ProviderAccountStorage,
+    account_id: &'a str,
+    metadata: &'a crate::account_storage::ProviderAccountMetadata,
+    token_url: &'a str,
+    host_auth: Option<&'a std::path::Path>,
+}
+
+impl Renewal<'_> {
+    async fn run(&self, tokens: &mut ProviderAccountTokens) -> Result<(), GrokError> {
+        if tokens.refresh_token.trim().is_empty() {
+            return self.adopt_host_token(tokens);
+        }
+        refresh_account_tokens(
+            self.client,
+            self.storage,
+            self.account_id,
+            tokens,
+            self.token_url,
+        )
+        .await
+    }
+
+    fn adopt_host_token(&self, tokens: &mut ProviderAccountTokens) -> Result<(), GrokError> {
+        let host = self
+            .host_auth
+            .and_then(account::read_host_credentials)
+            .ok_or(GrokError::HostSignInExpired)?;
+        if !host_is_same_account(&host, self.metadata) || host.access_token == tokens.access_token {
+            return Err(GrokError::HostSignInExpired);
+        }
+        let claims = oauth::decode_jwt_claims(&host.access_token);
+        tokens.access_token = host.access_token;
+        tokens.expires_at = host
+            .expires_at
+            .or_else(|| {
+                claims
+                    .and_then(|c| c.exp)
+                    .and_then(|exp| chrono::DateTime::from_timestamp(exp, 0))
+            })
+            .unwrap_or_else(|| Utc::now() + Duration::hours(1));
+        // Only the access token is kept; the CLI's refresh token is never copied.
+        tokens.refresh_token.clear();
+        self.storage
+            .save_tokens(self.account_id, tokens)
+            .map_err(map_account_storage_error)
+    }
+}
+
+/// The CLI's file can hold a different account than the one imported, after
+/// `grok login` as someone else. Its token is used only for the same user.
+fn host_is_same_account(
+    host: &account::HostGrokCredentials,
+    metadata: &crate::account_storage::ProviderAccountMetadata,
+) -> bool {
+    let host_user = host
+        .user_id
+        .clone()
+        .or_else(|| oauth::decode_jwt_claims(&host.access_token).and_then(|c| c.sub));
+    match (host_user, metadata.provider_account_id.as_deref()) {
+        (Some(host_user), Some(expected)) => host_user == expected,
+        _ => {
+            let host_email = host.email.as_deref().unwrap_or_default().trim();
+            !host_email.is_empty() && host_email.eq_ignore_ascii_case(metadata.email.trim())
+        }
+    }
 }
 
 async fn refresh_account_tokens(

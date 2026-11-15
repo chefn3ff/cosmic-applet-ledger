@@ -176,11 +176,13 @@ Ledger also reads, and never changes:
 
 - `~/.claude/projects/`: Claude Code session logs, for Claude's token charts.
 
-- `~/.grok/auth.json`: only when you import from the Grok CLI.
+- `~/.grok/auth.json`: when you import from the Grok CLI, and again when that account needs a fresh token.
 
-- `~/.local/share/opencode/auth.json`: only to prefill account forms.
+- `~/.local/share/opencode/auth.json`: to prefill account forms, for OpenCode imports, and when an imported Codex account needs a fresh token.
 
 - The Cursor IDE's local sign-in, when you scan for Cursor accounts.
+
+Accounts imported from the Grok CLI or OpenCode are never refreshed by Ledger. Refreshing a copied sign-in would rotate it and sign the original tool out, so Ledger keeps no refresh token for them and uses the tool's current token instead. If that token has expired too, the card asks you to open the tool once (or sign in to that provider in Ledger).
 
 Logs never contain credentials or tokens. If you find one that does, please [open an issue](https://github.com/chefn3ff/cosmic-applet-ledger/issues).
 

@@ -101,9 +101,12 @@ fn convert(credential: OpenCodeCredential) -> Result<CodexAuth, String> {
     if access.is_empty() || refresh.is_empty() {
         return Err("OpenCode does not contain a compatible Codex OAuth credential.".to_string());
     }
+    // OpenCode's refresh token is not copied: refreshing a copy rotates it and signs
+    // OpenCode out. The imported account borrows OpenCode's current access token
+    // when its own runs out (`adopt_opencode_token` in codex/mod.rs).
     Ok(CodexAuth {
         access_token: access,
-        refresh_token: Some(refresh),
+        refresh_token: None,
         expires_at: Some(expires_at),
         account_id,
         id_token: None,
@@ -214,7 +217,8 @@ mod tests {
         })
         .unwrap();
         assert_eq!(auth.access_token, "access");
-        assert_eq!(auth.refresh_token.as_deref(), Some("refresh"));
+        // C32.1: OpenCode refresh token is never copied.
+        assert_eq!(auth.refresh_token, None);
         assert_eq!(auth.account_id.as_deref(), Some("account"));
         assert_eq!(auth.expires_at.unwrap().timestamp_millis(), expires);
     }
@@ -319,7 +323,7 @@ mod tests {
         .load_tokens("codex-1")
         .unwrap();
         assert_eq!(tokens.access_token, "second");
-        assert_eq!(tokens.refresh_token, "refresh-second");
+        assert_eq!(tokens.refresh_token, "");
     }
 
     #[tokio::test]
@@ -445,5 +449,104 @@ mod tests {
         );
         assert_eq!(config, original_config);
         assert_eq!(fs::read(tokens_path).unwrap(), original_tokens);
+    }
+
+    /// An imported account (no refresh token) that has expired, in a temp store.
+    fn seed_imported(
+        dir: &std::path::Path,
+    ) -> (ProviderAccountStorage, String, std::path::PathBuf) {
+        let storage = ProviderAccountStorage::new(dir);
+        let stored = storage
+            .create_account(NewProviderAccount {
+                provider: ProviderId::Codex,
+                email: "user@example.com".to_string(),
+                provider_account_id: Some("acct-ours".to_string()),
+                organization_id: None,
+                organization_name: None,
+                tokens: ProviderAccountTokens {
+                    access_token: "stale-access".to_string(),
+                    refresh_token: String::new(),
+                    expires_at: Utc::now() - chrono::Duration::hours(1),
+                    scope: Vec::new(),
+                    token_id: None,
+                },
+                snapshot: None,
+            })
+            .unwrap();
+        (storage, stored.account_ref.account_id, stored.account_dir)
+    }
+
+    fn write_opencode(path: &std::path::Path, access: &str, account: &str) {
+        let expires = Utc::now().timestamp_millis() + 3_600_000;
+        fs::write(
+            path,
+            format!(r#"{{"openai":{{"type":"oauth","access":"{access}","refresh":"opencode-refresh","expires":{expires},"accountId":"{account}"}}}}"#),
+        )
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn imported_codex_account_takes_opencode_token_and_never_refreshes() {
+        let temp = tempdir().unwrap();
+        let (storage, account_id, account_dir) = seed_imported(&temp.path().join("accounts"));
+        let auth = temp.path().join("auth.json");
+        write_opencode(&auth, "opencode-fresh", "acct-ours");
+        let before = fs::read(&auth).unwrap();
+        let mut env = crate::test_support::test_env();
+        env.set(OPENCODE_AUTH_PATH_ENV, &auth);
+
+        // One-shot server: a token-endpoint call would take the only response and fail (A5).
+        let (usage, request) =
+            server(200, r#"{"email":"user@example.com","rate_limit":null}"#).await;
+        let _ = super::super::fetch_at(
+            &reqwest::Client::new(),
+            &account_id,
+            account_dir,
+            &usage,
+            "http://127.0.0.1:9/token",
+        )
+        .await;
+
+        let request = request.await.unwrap();
+        assert!(request.starts_with("GET /usage"), "{request}");
+        assert!(request.contains("Bearer opencode-fresh"), "{request}");
+        let tokens = storage.load_tokens(&account_id).unwrap();
+        assert_eq!(tokens.access_token, "opencode-fresh");
+        assert_eq!(tokens.refresh_token, "");
+        assert_eq!(
+            fs::read(&auth).unwrap(),
+            before,
+            "OpenCode file must be untouched"
+        );
+    }
+
+    #[test]
+    fn imported_codex_account_refuses_another_account_or_the_same_stale_token() {
+        for (access, account) in [
+            ("opencode-other", "acct-theirs"),
+            ("stale-access", "acct-ours"),
+        ] {
+            let temp = tempdir().unwrap();
+            let (storage, account_id, _) = seed_imported(&temp.path().join("accounts"));
+            let auth = temp.path().join("auth.json");
+            write_opencode(&auth, access, account);
+            let mut env = crate::test_support::test_env();
+            env.set(OPENCODE_AUTH_PATH_ENV, &auth);
+
+            let metadata = storage.load_metadata(&account_id).unwrap();
+            let current = storage.load_tokens(&account_id).unwrap();
+            let err =
+                super::super::adopt_opencode_token(&storage, &account_id, &metadata, &current)
+                    .unwrap_err();
+            assert!(
+                matches!(err, crate::error::CodexError::HostSignInExpired),
+                "{access}"
+            );
+            assert!(!err.requires_user_action());
+            assert_eq!(
+                storage.load_tokens(&account_id).unwrap().access_token,
+                "stale-access"
+            );
+        }
     }
 }

@@ -1188,8 +1188,7 @@ async fn fetch_at_handles_500_endpoint_error() {
 }
 
 #[tokio::test]
-async fn fetch_at_fails_if_refresh_token_empty_when_expiring() {
-    use super::fetch_at;
+async fn imported_account_without_cli_sign_in_asks_for_the_cli() {
     use crate::account_storage::ProviderAccountStorage;
     use chrono::{Duration, Utc};
 
@@ -1199,17 +1198,175 @@ async fn fetch_at_fails_if_refresh_token_empty_when_expiring() {
         setup_test_account(&storage, Utc::now() - Duration::hours(1), "");
 
     let client = reqwest::Client::new();
-    let err = fetch_at(
+    let err = super::fetch_with_host(
         &client,
         &account_id,
         account_dir,
-        "http://127.0.0.1:9999/billing",
-        "http://127.0.0.1:9999/token",
+        "http://127.0.0.1:9/billing",
+        "http://127.0.0.1:9/token",
+        Some(&temp.path().join("no-such-auth.json")),
     )
     .await
     .unwrap_err();
 
-    assert!(matches!(err, GrokError::RefreshUnavailable));
+    assert!(matches!(err, GrokError::HostSignInExpired));
+    // Not action-required: the card shows this text, and the account keeps
+    // retrying so it recovers once the CLI has a fresh token (C32.3).
+    assert!(!err.requires_user_action());
+    let card_text = crate::error::AppError::from(err).user_message();
+    assert!(card_text.contains("Run the Grok CLI"), "{card_text}");
+}
+
+/// Writes a Grok CLI auth.json and returns its path.
+fn write_host_auth(dir: &std::path::Path, access: &str, user_id: &str) -> std::path::PathBuf {
+    let path = dir.join("auth.json");
+    let expires = (chrono::Utc::now() + chrono::Duration::hours(2)).timestamp();
+    let body = serde_json::json!({
+        super::account::GROK_AUTH_KEY: {
+            "key": access,
+            "refresh_token": "cli-refresh-token",
+            "user_id": user_id,
+            "email": "dev@x.ai",
+            "expires_at": expires,
+        }
+    });
+    std::fs::write(&path, body.to_string()).unwrap();
+    path
+}
+
+fn billing_ok() -> MockResponse {
+    MockResponse {
+        method: "GET",
+        path: "/v1/billing?format=credits",
+        status: 200,
+        headers: vec![("content-type", "application/json")],
+        body: r#"{"config":{"creditUsagePercent":10.0},"subscriptionTier":"SuperGrok"}"#
+            .to_string(),
+    }
+}
+
+#[tokio::test]
+async fn imported_account_takes_the_cli_token_when_expired_and_never_refreshes() {
+    use crate::account_storage::ProviderAccountStorage;
+    use chrono::{Duration, Utc};
+
+    let temp = tempfile::tempdir().unwrap();
+    let storage = ProviderAccountStorage::new(temp.path());
+    let (account_id, account_dir) =
+        setup_test_account(&storage, Utc::now() - Duration::hours(1), "");
+    let host = write_host_auth(temp.path(), "cli-fresh-access", "usr-stored");
+    let host_before = std::fs::read(&host).unwrap();
+
+    // Only the billing call is mocked: a call to the token endpoint fails the test (A5).
+    let (base_url, handle) = mock_server(vec![billing_ok()]).await;
+    let client = reqwest::Client::new();
+    super::fetch_with_host(
+        &client,
+        &account_id,
+        account_dir,
+        &format!("{base_url}/v1/billing?format=credits"),
+        &format!("{base_url}/oauth2/token"),
+        Some(&host),
+    )
+    .await
+    .unwrap();
+
+    let requests = handle.await.unwrap();
+    assert_eq!(requests.len(), 1);
+    assert!(
+        requests[0].contains("Bearer cli-fresh-access"),
+        "{}",
+        requests[0]
+    );
+    let tokens = storage.load_tokens(&account_id).unwrap();
+    assert_eq!(tokens.access_token, "cli-fresh-access");
+    assert_eq!(
+        tokens.refresh_token, "",
+        "the CLI refresh token must not be copied"
+    );
+    assert!(tokens.expires_at > Utc::now() + Duration::hours(1));
+    assert_eq!(
+        std::fs::read(&host).unwrap(),
+        host_before,
+        "CLI file must be untouched"
+    );
+}
+
+#[tokio::test]
+async fn imported_account_takes_the_cli_token_after_a_401() {
+    use crate::account_storage::ProviderAccountStorage;
+    use chrono::{Duration, Utc};
+
+    let temp = tempfile::tempdir().unwrap();
+    let storage = ProviderAccountStorage::new(temp.path());
+    let (account_id, account_dir) =
+        setup_test_account(&storage, Utc::now() + Duration::hours(1), "");
+    let host = write_host_auth(temp.path(), "cli-fresh-access", "usr-stored");
+
+    let (base_url, handle) = mock_server(vec![
+        MockResponse {
+            method: "GET",
+            path: "/v1/billing?format=credits",
+            status: 401,
+            headers: vec![],
+            body: String::new(),
+        },
+        billing_ok(),
+    ])
+    .await;
+    let client = reqwest::Client::new();
+    super::fetch_with_host(
+        &client,
+        &account_id,
+        account_dir,
+        &format!("{base_url}/v1/billing?format=credits"),
+        &format!("{base_url}/oauth2/token"),
+        Some(&host),
+    )
+    .await
+    .unwrap();
+
+    let requests = handle.await.unwrap();
+    assert!(requests[0].contains("Bearer old-access"));
+    assert!(requests[1].contains("Bearer cli-fresh-access"));
+}
+
+#[tokio::test]
+async fn imported_account_refuses_another_users_or_the_same_stale_cli_token() {
+    use crate::account_storage::ProviderAccountStorage;
+    use chrono::{Duration, Utc};
+
+    for (access, user) in [
+        ("cli-other-access", "usr-someone-else"),
+        ("old-access", "usr-stored"),
+    ] {
+        let temp = tempfile::tempdir().unwrap();
+        let storage = ProviderAccountStorage::new(temp.path());
+        let (account_id, account_dir) =
+            setup_test_account(&storage, Utc::now() - Duration::hours(1), "");
+        let host = write_host_auth(temp.path(), access, user);
+
+        let client = reqwest::Client::new();
+        let err = super::fetch_with_host(
+            &client,
+            &account_id,
+            account_dir,
+            "http://127.0.0.1:9/billing",
+            "http://127.0.0.1:9/token",
+            Some(&host),
+        )
+        .await
+        .unwrap_err();
+
+        assert!(
+            matches!(err, GrokError::HostSignInExpired),
+            "{access}: {err}"
+        );
+        assert_eq!(
+            storage.load_tokens(&account_id).unwrap().access_token,
+            "old-access"
+        );
+    }
 }
 
 #[tokio::test]
@@ -1431,7 +1588,8 @@ async fn host_import_reads_credentials_commits_and_fetches_snapshot() {
     let storage = ProviderAccountStorage::new(paths().grok_accounts_dir);
     let tokens = storage.load_tokens("grok-import-test").unwrap();
     assert_eq!(tokens.access_token, "import-access-token");
-    assert_eq!(tokens.refresh_token, "import-refresh-token");
+    // C32.1: the CLI refresh token is never copied, so Ledger can never rotate it.
+    assert_eq!(tokens.refresh_token, "");
 
     let snapshot = storage
         .load_snapshot("grok-import-test")
@@ -1553,7 +1711,8 @@ async fn host_import_reauth_updates_same_account() {
     let storage = ProviderAccountStorage::new(paths().grok_accounts_dir);
     let tokens = storage.load_tokens("grok-reauth-target").unwrap();
     assert_eq!(tokens.access_token, "new-access-token");
-    assert_eq!(tokens.refresh_token, "new-refresh-token");
+    // C32.1: re-importing also drops a refresh token copied by an older version.
+    assert_eq!(tokens.refresh_token, "");
 }
 
 #[tokio::test]

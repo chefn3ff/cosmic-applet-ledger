@@ -400,9 +400,12 @@ pub(crate) async fn run_host_import_with(
         .expires_at
         .unwrap_or_else(|| Utc::now() + chrono::Duration::hours(1));
 
+    // The CLI's refresh token is not copied. Refreshing with a copy would rotate it
+    // and sign the Grok CLI out; an imported account borrows the CLI's current
+    // access token instead (see `Renewal` in grok/mod.rs).
     let tokens = ProviderAccountTokens {
         access_token: creds.access_token,
-        refresh_token: creds.refresh_token.unwrap_or_default(),
+        refresh_token: String::new(),
         expires_at,
         scope: Vec::new(),
         token_id: None,

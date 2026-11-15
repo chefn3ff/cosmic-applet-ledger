@@ -307,6 +307,10 @@ pub enum CodexError {
     RefreshDecode(#[source] reqwest::Error),
     #[error("Codex response had no usage windows")]
     NoUsageData,
+    #[error(
+        "Codex sign-in from OpenCode expired. Use OpenCode to refresh it, or sign in to Codex in Ledger"
+    )]
+    HostSignInExpired,
     #[error("failed to parse codex credit balance {balance}")]
     InvalidCreditBalance {
         balance: String,
@@ -1112,6 +1116,8 @@ pub enum GrokError {
     },
     #[error("grok token refresh not available")]
     RefreshUnavailable,
+    #[error("Grok sign-in expired. Run the Grok CLI to refresh it, or sign in to Grok in Ledger")]
+    HostSignInExpired,
 }
 
 impl GrokError {
@@ -1132,6 +1138,9 @@ impl GrokError {
         }
         matches!(
             self,
+            // HostSignInExpired is left out on purpose: the card shows its text (run
+            // the Grok CLI) instead of the generic re-authenticate badge, and the
+            // account keeps retrying, so it recovers once the CLI refreshes.
             Self::CredentialsMissing | Self::Unauthorized | Self::RefreshUnavailable
         )
     }

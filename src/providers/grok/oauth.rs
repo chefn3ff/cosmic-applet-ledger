@@ -36,6 +36,9 @@ pub struct GrokClaims {
     pub team_id: Option<String>,
     #[serde(default)]
     pub tier: Option<String>,
+    /// Expiry, seconds since the Unix epoch.
+    #[serde(default)]
+    pub exp: Option<i64>,
 }
 
 #[derive(Clone, PartialEq, Eq)]

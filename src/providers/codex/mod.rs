@@ -93,7 +93,15 @@ async fn fetch_at(
         .map_err(map_account_storage_error)?;
 
     if tokens.expires_at <= Utc::now() + REFRESH_BEFORE_EXPIRY {
-        tokens = refresh_tokens(client, &storage, account_id, &tokens, token_endpoint).await?;
+        tokens = renew_tokens(
+            client,
+            &storage,
+            account_id,
+            &metadata,
+            &tokens,
+            token_endpoint,
+        )
+        .await?;
     }
 
     let auth = auth_from_storage(&metadata, &tokens);
@@ -107,8 +115,15 @@ async fn fetch_at(
         }
         Err(error) => {
             if should_refresh_on(&error) {
-                tokens =
-                    refresh_tokens(client, &storage, account_id, &tokens, token_endpoint).await?;
+                tokens = renew_tokens(
+                    client,
+                    &storage,
+                    account_id,
+                    &metadata,
+                    &tokens,
+                    token_endpoint,
+                )
+                .await?;
                 let refreshed_auth = auth_from_storage(&metadata, &tokens);
                 let snapshot = fetch_oauth_at(client, &refreshed_auth, usage_endpoint).await?;
                 let _ = storage.save_snapshot(account_id, &snapshot);
@@ -128,6 +143,65 @@ fn map_account_storage_error(error: AccountStorageError) -> CodexError {
     } else {
         CodexError::AccountStorage(error.to_string())
     }
+}
+
+/// An account signed in through Ledger refreshes with its own refresh token. An
+/// account imported from OpenCode has none on purpose (refreshing a copy would
+/// rotate it and sign OpenCode out), so it takes OpenCode's current token instead.
+async fn renew_tokens(
+    client: &reqwest::Client,
+    storage: &ProviderAccountStorage,
+    account_id: &str,
+    metadata: &ProviderAccountMetadata,
+    current: &ProviderAccountTokens,
+    token_endpoint: &str,
+) -> Result<ProviderAccountTokens, CodexError> {
+    if current.refresh_token.is_empty() {
+        return adopt_opencode_token(storage, account_id, metadata, current);
+    }
+    refresh_tokens(client, storage, account_id, current, token_endpoint).await
+}
+
+/// Reads OpenCode's `auth.json` (never writes it) and takes its Codex access token,
+/// only when it belongs to the same ChatGPT account and differs from the one held.
+fn adopt_opencode_token(
+    storage: &ProviderAccountStorage,
+    account_id: &str,
+    metadata: &ProviderAccountMetadata,
+    current: &ProviderAccountTokens,
+) -> Result<ProviderAccountTokens, CodexError> {
+    let Some(crate::providers::opencode_auth::OpenCodeCredential::OAuth {
+        access,
+        expires,
+        account_id: opencode_account,
+        ..
+    }) = crate::providers::opencode_auth::discover("openai")
+    else {
+        return Err(CodexError::HostSignInExpired);
+    };
+    let opencode_account =
+        opencode_account.or_else(|| crate::auth::account_id_from_id_token(&access));
+    let same_account = matches!(
+        (opencode_account.as_deref(), metadata.provider_account_id.as_deref()),
+        (Some(theirs), Some(ours)) if theirs == ours
+    );
+    let expires_at = DateTime::<Utc>::from_timestamp_millis(expires)
+        .filter(|expires_at| *expires_at > Utc::now());
+    let (true, Some(expires_at)) = (same_account && access != current.access_token, expires_at)
+    else {
+        return Err(CodexError::HostSignInExpired);
+    };
+    let tokens = ProviderAccountTokens {
+        access_token: access,
+        refresh_token: String::new(),
+        expires_at,
+        scope: current.scope.clone(),
+        token_id: current.token_id.clone(),
+    };
+    storage
+        .save_tokens(account_id, &tokens)
+        .map_err(|error| CodexError::AccountStorage(error.to_string()))?;
+    Ok(tokens)
 }
 
 async fn refresh_tokens(
