@@ -60,6 +60,11 @@
     <keyword>Applet</keyword>
   </keywords>
   <releases>
+    <release type="stable" version="0.6.1" date="2026-11-15">
+      <description>
+        <p>Fixes from a code review: a new sign-in is never undone by older tokens from a failed save, older imported accounts stop refreshing automatically, imported tokens are used until they really expire, and more sign-in values are masked in debug output.</p>
+      </description>
+    </release>
     <release type="stable" version="0.6.0" date="2026-11-15">
       <description>
         <p>Accounts imported from the Grok CLI or OpenCode are no longer refreshed by Ledger, so it can't sign those tools out. Ledger uses each tool's current sign-in instead.</p>

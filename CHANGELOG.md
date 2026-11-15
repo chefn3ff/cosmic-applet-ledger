@@ -5,6 +5,20 @@ All notable changes to Ledger are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-11-15
+
+### Fixed
+- Signing in again after a failed token save could be undone: the older tokens
+  held from the failed save were written over the new sign-in. A new sign-in
+  or re-import now replaces them.
+- Grok and Codex accounts imported before 0.6.0 stop refreshing on their own:
+  when the copied refresh token is still the tool's current one, Ledger drops
+  it and borrows the tool's token like a new import. No re-import needed.
+- An imported account no longer shows "sign-in expired" in the last minutes
+  of a still-valid token; the token is used until it really expires.
+- The pasted Claude sign-in code, Copilot's device code and its poll token are
+  masked in debug output too, like the other credentials since 0.5.1.
+
 ## [0.6.0] - 2026-11-15
 
 ### Changed
