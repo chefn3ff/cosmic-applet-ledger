@@ -5,6 +5,21 @@ All notable changes to Ledger are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-11-15
+
+### Security
+- Tokens, API keys, client secrets, PKCE verifiers and pasted sign-in codes
+  print as `<redacted>` in debug output, so they can't end up in a log. A test
+  fails the build if a new credential type slips back to the plain derive.
+- The state and logs folders are created private (`0700`), and an existing
+  install's folders are tightened on the next start.
+- Links are opened only when they are `http` or `https`, including the
+  device-sign-in link GitHub sends back for Copilot.
+- Claude token totals and MiniMax window and count math can no longer overflow
+  on corrupt or extreme values.
+- CI pins every GitHub Action to a commit, runs with a read-only token, and
+  release builds use `--locked` without a shared cache.
+
 ## [0.5.0] - 2026-11-14
 
 ### Changed
