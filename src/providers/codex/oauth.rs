@@ -177,27 +177,7 @@ pub(super) fn percent_encode(value: &str) -> String {
     out
 }
 
-pub(super) fn percent_decode(value: &str) -> String {
-    let mut out = Vec::with_capacity(value.len());
-    let bytes = value.as_bytes();
-    let mut index = 0;
-    while index < bytes.len() {
-        if bytes[index] == b'%'
-            && index + 2 < bytes.len()
-            && let Ok(hex) = u8::from_str_radix(&value[index + 1..index + 3], 16)
-        {
-            out.push(hex);
-            index += 3;
-        } else if bytes[index] == b'+' {
-            out.push(b' ');
-            index += 1;
-        } else {
-            out.push(bytes[index]);
-            index += 1;
-        }
-    }
-    String::from_utf8_lossy(&out).to_string()
-}
+pub(super) use crate::providers::url_query::percent_decode;
 
 #[cfg(test)]
 mod tests {

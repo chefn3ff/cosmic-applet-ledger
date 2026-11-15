@@ -18,4 +18,5 @@ pub mod opencode_auth;
 pub mod opencode_go;
 pub mod openrouter;
 pub mod registry;
+pub mod url_query;
 pub mod zai;
