@@ -60,6 +60,11 @@
     <keyword>Applet</keyword>
   </keywords>
   <releases>
+    <release type="stable" version="0.6.0" date="2026-11-15">
+      <description>
+        <p>Accounts imported from the Grok CLI or OpenCode are no longer refreshed by Ledger, so it can't sign those tools out. Ledger uses each tool's current sign-in instead.</p>
+      </description>
+    </release>
     <release type="stable" version="0.5.1" date="2026-11-15">
       <description>
         <p>Security hardening: credentials never appear in debug output, the state and logs folders are private, only web links are opened, and token math can't overflow.</p>
